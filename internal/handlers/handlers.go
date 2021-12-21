@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type Handler struct {
@@ -25,12 +26,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(url))
 	case "GET":
 		s := r.RequestURI
-		if s == "" {
+		if s == "/" {
 			http.Error(w, "id is empty", http.StatusBadRequest)
 			return
 		}
-		i, err := strconv.Atoi(s)
-		if err == nil || i > len(h.Ids)-1 {
+		id := strings.TrimPrefix(s, "/")
+		i, err := strconv.Atoi(id)
+		if err != nil || i > len(h.Ids)-1 {
 			http.Error(w, "con't find id", http.StatusBadRequest)
 			return
 		}
