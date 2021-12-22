@@ -22,7 +22,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 		w.WriteHeader(201)
 		h.Ids = append(h.Ids, s)
-		url := r.Host + r.URL.String() + strconv.Itoa(len(h.Ids)-1)
+		url := "http://" + r.Host + r.URL.String() + strconv.Itoa(len(h.Ids)-1)
 		w.Write([]byte(url))
 	case "GET":
 		s := r.RequestURI

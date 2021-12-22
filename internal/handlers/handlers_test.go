@@ -28,7 +28,7 @@ func TestInitalHandler(t *testing.T) {
 			method: http.MethodPost,
 			want: want{
 				code:     201,
-				response: `example.com/0`,
+				response: `http://example.com/0`,
 			},
 		},
 		{
@@ -37,7 +37,7 @@ func TestInitalHandler(t *testing.T) {
 			method: http.MethodPost,
 			want: want{
 				code:     201,
-				response: `example.com/1`,
+				response: `http://example.com/1`,
 			},
 		},
 	}
