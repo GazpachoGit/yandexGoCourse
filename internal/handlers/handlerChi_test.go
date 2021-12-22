@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,8 +13,8 @@ import (
 
 func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []byte) (*http.Response, string) {
 
-	var req *http.Request = &http.Request{}
-	err := errors.New("")
+	req := &http.Request{}
+	var err error
 	if body == nil {
 		req, err = http.NewRequest(method, ts.URL+path, nil)
 	} else {
@@ -48,11 +47,13 @@ func TestRouter(t *testing.T) {
 	assert.Equal(t, 201, resp.StatusCode)
 	assert.Equal(t, ts.URL+"/1", body)
 
-	resp, body = testRequest(t, ts, http.MethodGet, "/0", nil)
+	resp, _ = testRequest(t, ts, http.MethodGet, "/0", nil)
 	assert.Equal(t, 307, resp.StatusCode)
 	assert.Equal(t, "http://ya.ru", resp.Header.Get("Location"))
 
-	resp, body = testRequest(t, ts, http.MethodGet, "/1", nil)
+	resp, _ = testRequest(t, ts, http.MethodGet, "/1", nil)
 	assert.Equal(t, 307, resp.StatusCode)
 	assert.Equal(t, "http://google.ru", resp.Header.Get("Location"))
+
+	defer resp.Body.Close()
 }
