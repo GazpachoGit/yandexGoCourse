@@ -13,7 +13,7 @@ import (
 
 func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []byte) (*http.Response, string) {
 
-	req := &http.Request{}
+	var req *http.Request
 	var err error
 	if body == nil {
 		req, err = http.NewRequest(method, ts.URL+path, nil)
@@ -55,5 +55,4 @@ func TestRouter(t *testing.T) {
 	assert.Equal(t, 307, resp.StatusCode)
 	assert.Equal(t, "http://google.ru", resp.Header.Get("Location"))
 
-	defer resp.Body.Close()
 }
