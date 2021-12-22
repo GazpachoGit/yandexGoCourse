@@ -4,16 +4,27 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
+
+	"github.com/go-chi/chi"
 )
 
-type Handler struct {
+type HandlerChi struct {
 	Ids []string
+	*chi.Mux
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "POST":
+func NewHandlerChi() *HandlerChi {
+	h := &HandlerChi{
+		Ids: make([]string, 0, 3),
+		Mux: chi.NewMux(),
+	}
+	h.Post("/", h.InitialPostHandler())
+	h.Get("/{uId}", h.InitialGetHandler())
+	return h
+}
+
+func (h *HandlerChi) InitialPostHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
@@ -24,14 +35,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.Ids = append(h.Ids, s)
 		url := "http://" + r.Host + r.URL.String() + strconv.Itoa(len(h.Ids)-1)
 		w.Write([]byte(url))
-	case "GET":
-		s := r.RequestURI
-		if s == "/" {
+	}
+}
+func (h *HandlerChi) InitialGetHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s := chi.URLParam(r, "uId")
+		if s == "" {
 			http.Error(w, "id is empty", http.StatusBadRequest)
 			return
 		}
-		id := strings.TrimPrefix(s, "/")
-		i, err := strconv.Atoi(id)
+		i, err := strconv.Atoi(s)
 		if err != nil || i > len(h.Ids)-1 {
 			http.Error(w, "can't find id", http.StatusBadRequest)
 			return
@@ -39,8 +52,5 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		res := h.Ids[i]
 		w.Header().Set("Location", res)
 		w.WriteHeader(307)
-	default:
-		http.Error(w, "wrong request", http.StatusBadRequest)
-		return
 	}
 }
