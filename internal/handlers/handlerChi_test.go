@@ -1,3 +1,4 @@
+//go test github.com/GazpachoGit/yandexGoCourse/internal/handlers -run TestRequest -count 1
 package handlers
 
 import (
@@ -11,7 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []byte) (*http.Response, string) {
+type respData struct {
+	body       string
+	StatusCode int
+	Header     http.Header
+}
+
+func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []byte) *respData {
 
 	var req *http.Request
 	var err error
@@ -22,7 +29,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 	}
 	require.NoError(t, err)
 	transport := http.Transport{}
-	resp, err := transport.RoundTrip(req) //nolint:bodyclose // linters bug
+	resp, err := transport.RoundTrip(req)
 
 	require.NoError(t, err)
 
@@ -31,7 +38,11 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 
 	require.NoError(t, err)
 
-	return resp, string(respBody)
+	return &respData{
+		body:       string(respBody),
+		StatusCode: resp.StatusCode,
+		Header:     resp.Header,
+	}
 }
 
 func TestRouter(t *testing.T) {
@@ -39,19 +50,19 @@ func TestRouter(t *testing.T) {
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
-	resp, body := testRequest(t, ts, http.MethodPost, "/", []byte("http://ya.ru")) //nolint:bodyclose // linters bug
+	resp := testRequest(t, ts, http.MethodPost, "/", []byte("http://ya.ru"))
 	assert.Equal(t, 201, resp.StatusCode)
-	assert.Equal(t, ts.URL+"/0", body)
+	assert.Equal(t, ts.URL+"/0", resp.body)
 
-	resp, body = testRequest(t, ts, http.MethodPost, "/", []byte("http://google.ru")) //nolint:bodyclose // linters bug
+	resp = testRequest(t, ts, http.MethodPost, "/", []byte("http://google.ru"))
 	assert.Equal(t, 201, resp.StatusCode)
-	assert.Equal(t, ts.URL+"/1", body)
+	assert.Equal(t, ts.URL+"/1", resp.body)
 
-	resp, _ = testRequest(t, ts, http.MethodGet, "/0", nil) //nolint:bodyclose // linters bug
+	resp = testRequest(t, ts, http.MethodGet, "/0", nil)
 	assert.Equal(t, 307, resp.StatusCode)
-	assert.Equal(t, "http://ya.ru", resp.Header.Get("Location")) //nolint:bodyclose // linters bug
+	assert.Equal(t, "http://ya.ru", resp.Header.Get("Location"))
 
-	resp, _ = testRequest(t, ts, http.MethodGet, "/1", nil)
+	resp = testRequest(t, ts, http.MethodGet, "/1", nil)
 	assert.Equal(t, 307, resp.StatusCode)
 	assert.Equal(t, "http://google.ru", resp.Header.Get("Location"))
 
