@@ -22,7 +22,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 	}
 	require.NoError(t, err)
 	transport := http.Transport{}
-	resp, err := transport.RoundTrip(req)
+	resp, err := transport.RoundTrip(req) //nolint:bodyclose // linters bug
 
 	require.NoError(t, err)
 
