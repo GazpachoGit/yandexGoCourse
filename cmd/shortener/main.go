@@ -4,13 +4,11 @@ import (
 	"net/http"
 
 	"github.com/GazpachoGit/yandexGoCourse/internal/handlers"
+	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
 )
 
 func main() {
-	//handler := &handlers.Handler{Ids: make([]string, 0, 3)}
-	//http.Handle("/", handler)
-	//http.ListenAndServe(":8080", nil)
-
-	r := handlers.NewHandlerChi()
+	var urlMap storage.UrlGetSet = &storage.UrlMap{}
+	r := handlers.NewShortenerHandler(urlMap)
 	http.ListenAndServe(":8080", r)
 }
