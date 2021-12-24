@@ -17,12 +17,12 @@ func NewShortenerHandler(urlMap storage.UrlGetSet) *ShortenerHandler {
 	h := &ShortenerHandler{
 		Mux: chi.NewMux(),
 	}
-	h.Post("/", h.NewShortUrl(urlMap))
-	h.Get("/{id}", h.GetShortUrl(urlMap))
+	h.Post("/", h.NewShortURL(urlMap))
+	h.Get("/{id}", h.GetShortURL(urlMap))
 	return h
 }
 
-func (h *ShortenerHandler) NewShortUrl(urlMap storage.UrlGetSet) http.HandlerFunc {
+func (h *ShortenerHandler) NewShortURL(urlMap storage.UrlGetSet) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -39,7 +39,7 @@ func (h *ShortenerHandler) NewShortUrl(urlMap storage.UrlGetSet) http.HandlerFun
 		w.Write([]byte(url))
 	}
 }
-func (h *ShortenerHandler) GetShortUrl(urlMap storage.UrlGetSet) http.HandlerFunc {
+func (h *ShortenerHandler) GetShortURL(urlMap storage.UrlGetSet) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s := chi.URLParam(r, "id")
 		if s == "" {

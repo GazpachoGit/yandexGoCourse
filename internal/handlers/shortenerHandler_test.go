@@ -93,7 +93,7 @@ func TestRouter(t *testing.T) {
 			path:   "/1",
 			body:   nil,
 			want: &want{
-				code:   http.StatusCreated,
+				code:   http.StatusTemporaryRedirect,
 				header: "http://ya.ru",
 			},
 		},
@@ -103,7 +103,7 @@ func TestRouter(t *testing.T) {
 			path:   "/2",
 			body:   nil,
 			want: &want{
-				code:   http.StatusCreated,
+				code:   http.StatusTemporaryRedirect,
 				header: "http://google.ru",
 			},
 		},
