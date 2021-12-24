@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-type UrlMap struct {
+type URLMap struct {
 	data  *sync.Map
 	count int
 }
@@ -14,12 +14,12 @@ type UrlMap struct {
 // 	return &urlMap{_map: &sync.Map{}}
 // }
 
-type UrlGetSet interface {
+type GetSet interface {
 	Set(string) int
 	Get(int) (string, error)
 }
 
-func (m *UrlMap) Set(val string) int {
+func (m *URLMap) Set(val string) int {
 	if m.data == nil {
 		m.data = &sync.Map{}
 		m.count = 0
@@ -28,7 +28,7 @@ func (m *UrlMap) Set(val string) int {
 	m.data.Store(m.count, val)
 	return m.count
 }
-func (m *UrlMap) Get(key int) (string, error) {
+func (m *URLMap) Get(key int) (string, error) {
 	if m.data == nil {
 		return "", errors.New("empty url repository")
 	}

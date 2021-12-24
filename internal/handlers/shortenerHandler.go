@@ -13,7 +13,7 @@ type ShortenerHandler struct {
 	*chi.Mux
 }
 
-func NewShortenerHandler(urlMap storage.UrlGetSet) *ShortenerHandler {
+func NewShortenerHandler(urlMap storage.GetSet) *ShortenerHandler {
 	h := &ShortenerHandler{
 		Mux: chi.NewMux(),
 	}
@@ -22,7 +22,7 @@ func NewShortenerHandler(urlMap storage.UrlGetSet) *ShortenerHandler {
 	return h
 }
 
-func (h *ShortenerHandler) NewShortURL(urlMap storage.UrlGetSet) http.HandlerFunc {
+func (h *ShortenerHandler) NewShortURL(urlMap storage.GetSet) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -39,7 +39,7 @@ func (h *ShortenerHandler) NewShortURL(urlMap storage.UrlGetSet) http.HandlerFun
 		w.Write([]byte(url))
 	}
 }
-func (h *ShortenerHandler) GetShortURL(urlMap storage.UrlGetSet) http.HandlerFunc {
+func (h *ShortenerHandler) GetShortURL(urlMap storage.GetSet) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s := chi.URLParam(r, "id")
 		if s == "" {
