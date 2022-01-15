@@ -1,4 +1,4 @@
-//go test github.com/GazpachoGit/yandexGoCourse/internal/handlers -run TestRequest -count 1
+//go test github.com/GazpachoGit/yandexGoCourse/internal/handlers -run TestRouter -count 1
 package handlers
 
 import (
@@ -107,6 +107,28 @@ func TestRouter(t *testing.T) {
 				header: "http://google.ru",
 			},
 		},
+		{
+			name:   "get with incorrect id",
+			method: http.MethodGet,
+			path:   "/a",
+			body:   nil,
+			want: &want{
+				code:     http.StatusBadRequest,
+				header:   "",
+				response: "incorrect id\n",
+			},
+		},
+		{
+			name:   "get when id is not found",
+			method: http.MethodGet,
+			path:   "/123",
+			body:   nil,
+			want: &want{
+				code:     http.StatusNotFound,
+				header:   "",
+				response: storage.ErrNotFound + "\n",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -116,6 +138,9 @@ func TestRouter(t *testing.T) {
 			assert.Equal(t, tt.want.response, resp.body)
 		} else {
 			assert.Equal(t, tt.want.header, resp.Header.Get("Location"))
+			if tt.want.response != "" {
+				assert.Equal(t, tt.want.response, resp.body)
+			}
 		}
 	}
 }

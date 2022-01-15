@@ -5,6 +5,10 @@ import (
 	"sync"
 )
 
+const (
+	ErrNotFound = "can't find id"
+)
+
 type URLMap struct {
 	data  *sync.Map
 	count int
@@ -30,11 +34,11 @@ func (m *URLMap) Set(val string) int {
 }
 func (m *URLMap) Get(key int) (string, error) {
 	if m.data == nil {
-		return "", errors.New("empty url repository")
+		return "", errors.New(ErrNotFound)
 	}
 	if res, ok := m.data.Load(key); ok {
 		return res.(string), nil
 	} else {
-		return "", errors.New("can't find id")
+		return "", errors.New(ErrNotFound)
 	}
 }
