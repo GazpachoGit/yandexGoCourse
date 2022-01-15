@@ -129,6 +129,26 @@ func TestRouter(t *testing.T) {
 				response: storage.ErrNotFound + "\n",
 			},
 		},
+		{
+			name:   "post json",
+			method: http.MethodPost,
+			path:   "/api/shorten",
+			body:   []byte("{\"url\":\"http://yandex.ru\"}"),
+			want: &want{
+				code:     http.StatusCreated,
+				response: "{\"result\":\"" + ts.URL + "/3" + "\"}",
+			},
+		},
+		{
+			name:   "post json without url",
+			method: http.MethodPost,
+			path:   "/api/shorten",
+			body:   []byte("{}"),
+			want: &want{
+				code:     http.StatusBadRequest,
+				response: "url is empty\n",
+			},
+		},
 	}
 
 	for _, tt := range tests {

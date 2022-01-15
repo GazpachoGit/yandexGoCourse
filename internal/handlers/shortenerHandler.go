@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,6 +16,14 @@ type ShortenerHandler struct {
 	urlMap storage.GetSet
 }
 
+type ShortenerRequestBoby struct {
+	URL string `json:"url,omitempty"`
+}
+
+type ShortenerResponseBoby struct {
+	Result string `json:"result"`
+}
+
 func NewShortenerHandler(urlMapInput storage.GetSet) *ShortenerHandler {
 	h := &ShortenerHandler{
 		Mux:    chi.NewMux(),
@@ -22,7 +31,36 @@ func NewShortenerHandler(urlMapInput storage.GetSet) *ShortenerHandler {
 	}
 	h.Post("/", h.NewShortURL())
 	h.Get("/{id}", h.GetShortURL())
+	h.Post("/api/shorten", h.NewShortURLByJson())
 	return h
+}
+func (h *ShortenerHandler) NewShortURLByJson() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		requestBody := &ShortenerRequestBoby{}
+		json.Unmarshal(b, requestBody)
+		if requestBody.URL == "" {
+			http.Error(w, "url is empty", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		id := h.urlMap.Set(requestBody.URL)
+
+		url := h.formUrl(r, id)
+		responseBody := &ShortenerResponseBoby{Result: url}
+		requestBodyJson, err := json.Marshal(responseBody)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Write([]byte(requestBodyJson))
+	}
 }
 
 func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
@@ -30,10 +68,12 @@ func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 		s := string(b)
 		if s == "" {
 			http.Error(w, "url is empty", http.StatusBadRequest)
+			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 		w.WriteHeader(http.StatusCreated)
@@ -69,6 +109,7 @@ func (h *ShortenerHandler) GetShortURL() http.HandlerFunc {
 				return
 			}
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 
 		} else {
 			w.Header().Set("Location", res)
