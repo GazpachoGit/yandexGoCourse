@@ -14,9 +14,9 @@ type URLMap struct {
 	count int
 }
 
-// func NewUrlMap() *urlMap{
-// 	return &urlMap{_map: &sync.Map{}}
-// }
+func NewUrlMap() GetSet {
+	return &URLMap{data: &sync.Map{}, count: 0}
+}
 
 type GetSet interface {
 	Set(string) int

@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	var urlMap storage.GetSet = &storage.URLMap{}
+	var urlMap storage.GetSet = storage.NewUrlMap()
 	r := handlers.NewShortenerHandler(urlMap)
 	http.ListenAndServe(":8080", r)
 }
