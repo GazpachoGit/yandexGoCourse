@@ -4,9 +4,9 @@ import (
 	"log"
 	"net/http"
 
+	serverConfig "github.com/GazpachoGit/yandexGoCourse/internal/config"
 	"github.com/GazpachoGit/yandexGoCourse/internal/handlers"
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
-	"github.com/caarlos0/env/v6"
 )
 
 type Config struct {
@@ -14,8 +14,7 @@ type Config struct {
 }
 
 func main() {
-	var cfg Config
-	err := env.Parse(&cfg)
+	cfg, err := serverConfig.GetConfig()
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -28,5 +27,11 @@ func main() {
 		return
 	}
 	r := handlers.NewShortenerHandler(urlMap)
-	http.ListenAndServe(":8080", r)
+	server := &http.Server{
+		Addr:    cfg.ServerAddres,
+		Handler: r,
+	}
+	server.ListenAndServe()
+
+	//http.ListenAndServe(":8080", r)
 }
