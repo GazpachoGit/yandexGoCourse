@@ -55,7 +55,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 }
 
 func TestRouter(t *testing.T) {
-	urlMap := &storage.URLMap{}
+	urlMap, _ := storage.NewUrlMap("c")
 	r := NewShortenerHandler(urlMap)
 	ts := httptest.NewServer(r)
 	defer ts.Close()

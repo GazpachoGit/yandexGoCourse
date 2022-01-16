@@ -13,7 +13,7 @@ import (
 
 type ShortenerHandler struct {
 	*chi.Mux
-	urlMap storage.GetSet
+	UrlMap storage.GetSet
 }
 
 type ShortenerRequestBoby struct {
@@ -27,7 +27,7 @@ type ShortenerResponseBoby struct {
 func NewShortenerHandler(urlMapInput storage.GetSet) *ShortenerHandler {
 	h := &ShortenerHandler{
 		Mux:    chi.NewMux(),
-		urlMap: urlMapInput,
+		UrlMap: urlMapInput,
 	}
 	h.Post("/", h.NewShortURL())
 	h.Get("/{id}", h.GetShortURL())
@@ -49,7 +49,11 @@ func (h *ShortenerHandler) NewShortURLByJson() http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		id := h.urlMap.Set(requestBody.URL)
+		id, err := h.UrlMap.Set(requestBody.URL)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		url := h.formUrl(r, id)
 		responseBody := &ShortenerResponseBoby{Result: url}
@@ -77,7 +81,11 @@ func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 		w.WriteHeader(http.StatusCreated)
-		id := h.urlMap.Set(s)
+		id, err := h.UrlMap.Set(s)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		url := h.formUrl(r, id)
 		w.Write([]byte(url))
@@ -103,7 +111,7 @@ func (h *ShortenerHandler) GetShortURL() http.HandlerFunc {
 			http.Error(w, "incorrect id", http.StatusBadRequest)
 			return
 		}
-		if res, err := h.urlMap.Get(i); err != nil {
+		if res, err := h.UrlMap.Get(i); err != nil {
 			if err.Error() == storage.ErrNotFound {
 				http.Error(w, err.Error(), http.StatusNotFound)
 				return
