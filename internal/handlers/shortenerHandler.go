@@ -13,7 +13,8 @@ import (
 
 type ShortenerHandler struct {
 	*chi.Mux
-	UrlMap storage.GetSet
+	UrlMap  storage.GetSet
+	BaseUrl string
 }
 
 type ShortenerRequestBoby struct {
@@ -24,10 +25,11 @@ type ShortenerResponseBoby struct {
 	Result string `json:"result"`
 }
 
-func NewShortenerHandler(urlMapInput storage.GetSet) *ShortenerHandler {
+func NewShortenerHandler(urlMapInput storage.GetSet, BaseUrl string) *ShortenerHandler {
 	h := &ShortenerHandler{
-		Mux:    chi.NewMux(),
-		UrlMap: urlMapInput,
+		Mux:     chi.NewMux(),
+		UrlMap:  urlMapInput,
+		BaseUrl: BaseUrl,
 	}
 	h.Post("/", h.NewShortURL())
 	h.Get("/{id}", h.GetShortURL())
@@ -55,7 +57,7 @@ func (h *ShortenerHandler) NewShortURLByJson() http.HandlerFunc {
 			return
 		}
 
-		url := h.formUrl(r, id)
+		url := h.BaseUrl + strconv.Itoa(id)
 		responseBody := &ShortenerResponseBoby{Result: url}
 		requestBodyJson, err := json.Marshal(responseBody)
 		if err != nil {
@@ -87,7 +89,7 @@ func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 			return
 		}
 
-		url := h.formUrl(r, id)
+		url := h.BaseUrl + strconv.Itoa(id)
 		w.Write([]byte(url))
 	}
 }

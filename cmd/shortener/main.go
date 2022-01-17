@@ -9,10 +9,6 @@ import (
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
 )
 
-type Config struct {
-	FilePath string `env:"FILE_STORAGE_PATH"`
-}
-
 func main() {
 	cfg, err := serverConfig.GetConfig()
 	if err != nil {
@@ -26,7 +22,7 @@ func main() {
 		log.Fatal(err)
 		return
 	}
-	r := handlers.NewShortenerHandler(urlMap)
+	r := handlers.NewShortenerHandler(urlMap, cfg.BaseUrl)
 	server := &http.Server{
 		Addr:    cfg.ServerAddres,
 		Handler: r,
