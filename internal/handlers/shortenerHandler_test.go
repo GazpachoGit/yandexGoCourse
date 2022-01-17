@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	serverConfig "github.com/GazpachoGit/yandexGoCourse/internal/config"
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,8 +56,10 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 }
 
 func TestRouter(t *testing.T) {
-	urlMap, _ := storage.NewUrlMap("c")
-	r := NewShortenerHandler(urlMap)
+	cfg, _ := serverConfig.GetConfig()
+	urlMap, _ := storage.NewUrlMap(cfg.FilePath)
+
+	r := NewShortenerHandler(urlMap, cfg.BaseUrl)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 

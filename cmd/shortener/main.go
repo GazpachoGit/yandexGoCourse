@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -10,6 +12,11 @@ import (
 )
 
 func main() {
+
+	wordPtr := flag.String("word", "foo", "a string")
+	flag.Parse()
+	fmt.Println("word:", *wordPtr)
+
 	cfg, err := serverConfig.GetConfig()
 	if err != nil {
 		log.Fatal(err)

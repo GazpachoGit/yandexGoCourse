@@ -1,6 +1,8 @@
 package serverConfig
 
-import "github.com/caarlos0/env"
+import (
+	"github.com/caarlos0/env"
+)
 
 type Config struct {
 	FilePath     string `env:"FILE_STORAGE_PATH"`
