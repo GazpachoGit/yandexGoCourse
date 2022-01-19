@@ -22,7 +22,7 @@ type fileRecord struct {
 
 type URLMap struct {
 	data    *sync.Map
-	count   int
+	Count   int
 	file    *os.File
 	scanner *bufio.Scanner
 	writer  *bufio.Writer
@@ -38,7 +38,7 @@ func NewUrlMap(FilePath string) (*URLMap, error) {
 		scanner: bufio.NewScanner(file),
 		writer:  bufio.NewWriter(file),
 		data:    &sync.Map{},
-		count:   0,
+		Count:   0,
 	}
 	if err = newURLMap.getDataFromFile(); err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func (m *URLMap) getDataFromFile() error {
 		return err
 	}
 	for _, val := range dataArray {
-		m.count = m.setNewValToMap(val)
+		m.Count = m.setNewValToMap(val)
 	}
 
 	return nil
@@ -77,9 +77,9 @@ type GetSet interface {
 }
 
 func (m *URLMap) setNewValToMap(record *fileRecord) int {
-	m.count = record.Id
+	m.Count = record.Id
 	m.data.Store(record.Id, record.Url)
-	return m.count
+	return m.Count
 }
 
 func (m *URLMap) putFileRecord(record *fileRecord) error {
@@ -99,14 +99,14 @@ func (m *URLMap) putFileRecord(record *fileRecord) error {
 }
 
 func (m *URLMap) Set(val string) (int, error) {
-	m.count++
-	record := &fileRecord{Id: m.count, Url: val}
+	m.Count++
+	record := &fileRecord{Id: m.Count, Url: val}
 	err := m.putFileRecord(record)
 	if err != nil {
 		return 0, err
 	}
-	m.data.Store(m.count, val)
-	return m.count, nil
+	m.data.Store(m.Count, val)
+	return m.Count, nil
 }
 func (m *URLMap) Get(key int) (string, error) {
 	if m.data == nil {

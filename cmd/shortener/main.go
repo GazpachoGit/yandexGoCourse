@@ -1,10 +1,12 @@
+// set FILE_STORAGE_PATH=../../internal/storage/storage.txt | set SERVER_ADDRESS=:8080 | set BASE_URL=http://localhost:8080/
+
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	serverConfig "github.com/GazpachoGit/yandexGoCourse/internal/config"
 	"github.com/GazpachoGit/yandexGoCourse/internal/handlers"
@@ -13,15 +15,18 @@ import (
 
 func main() {
 
-	wordPtr := flag.String("word", "foo", "a string")
-	flag.Parse()
-	fmt.Println("word:", *wordPtr)
+	str := os.Getenv("FILE_STORAGE_PATH")
+	fmt.Println("filePath")
+	fmt.Println(str)
 
 	cfg, err := serverConfig.GetConfig()
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
+
+	fmt.Println("server")
+	fmt.Println(cfg.ServerAddres)
 
 	urlMap, err := storage.NewUrlMap(cfg.FilePath)
 	defer urlMap.Close()
@@ -34,7 +39,7 @@ func main() {
 		Addr:    cfg.ServerAddres,
 		Handler: r,
 	}
-	server.ListenAndServe()
+	log.Fatal(server.ListenAndServe())
 
 	//http.ListenAndServe(":8080", r)
 }

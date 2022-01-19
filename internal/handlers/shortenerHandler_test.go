@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	serverConfig "github.com/GazpachoGit/yandexGoCourse/internal/config"
@@ -77,17 +78,17 @@ func TestRouter(t *testing.T) {
 			body:   []byte("http://ya.ru"),
 			want: &want{
 				code:     http.StatusCreated,
-				response: ts.URL + "/1",
+				response: cfg.BaseUrl + strconv.Itoa(urlMap.Count+1),
 			},
 		},
 		{
 			name:   "post 2",
 			method: http.MethodPost,
 			path:   "/",
-			body:   []byte("http://google.ru"),
+			body:   []byte("https://google.com"),
 			want: &want{
 				code:     http.StatusCreated,
-				response: ts.URL + "/2",
+				response: cfg.BaseUrl + strconv.Itoa(urlMap.Count+2),
 			},
 		},
 		{
@@ -107,7 +108,7 @@ func TestRouter(t *testing.T) {
 			body:   nil,
 			want: &want{
 				code:   http.StatusTemporaryRedirect,
-				header: "http://google.ru",
+				header: "https://google.com",
 			},
 		},
 		{
@@ -139,7 +140,7 @@ func TestRouter(t *testing.T) {
 			body:   []byte("{\"url\":\"http://yandex.ru\"}"),
 			want: &want{
 				code:     http.StatusCreated,
-				response: "{\"result\":\"" + ts.URL + "/3" + "\"}",
+				response: "{\"result\":\"" + cfg.BaseUrl + strconv.Itoa(urlMap.Count+3) + "\"}",
 			},
 		},
 		{
@@ -156,13 +157,13 @@ func TestRouter(t *testing.T) {
 
 	for _, tt := range tests {
 		resp := testRequest(t, ts, tt.method, tt.path, tt.body)
-		assert.Equal(t, tt.want.code, resp.StatusCode)
+		assert.Equal(t, tt.want.code, resp.StatusCode, tt.name)
 		if tt.method == http.MethodPost {
-			assert.Equal(t, tt.want.response, resp.body)
+			assert.Equal(t, tt.want.response, resp.body, tt.name)
 		} else {
-			assert.Equal(t, tt.want.header, resp.Header.Get("Location"))
+			assert.Equal(t, tt.want.header, resp.Header.Get("Location"), tt.name)
 			if tt.want.response != "" {
-				assert.Equal(t, tt.want.response, resp.body)
+				assert.Equal(t, tt.want.response, resp.body, tt.name)
 			}
 		}
 	}
