@@ -1,4 +1,4 @@
-package serverConfig
+package serverconfig
 
 import (
 	"flag"
@@ -9,7 +9,7 @@ import (
 type Config struct {
 	FilePath     string `env:"FILE_STORAGE_PATH"`
 	ServerAddres string `env:"SERVER_ADDRESS"`
-	BaseUrl      string `env:"BASE_URL"`
+	BaseURL      string `env:"BASE_URL"`
 }
 
 func GetConfig() (*Config, error) {
@@ -27,9 +27,9 @@ func GetConfig() (*Config, error) {
 	if *ServerAddres != "" {
 		cfg.FilePath = *ServerAddres
 	}
-	BaseUrl := flag.String("BASE_URL", "", "url storage address")
-	if *BaseUrl != "" {
-		cfg.FilePath = *BaseUrl
+	BaseURL := flag.String("BASE_URL", "", "url storage address")
+	if *BaseURL != "" {
+		cfg.BaseURL = *BaseURL
 	}
 
 	return cfg, nil

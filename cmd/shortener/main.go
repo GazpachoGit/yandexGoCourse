@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 
-	serverConfig "github.com/GazpachoGit/yandexGoCourse/internal/config"
+	serverconfig "github.com/GazpachoGit/yandexGoCourse/internal/config"
 	"github.com/GazpachoGit/yandexGoCourse/internal/handlers"
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
 )
@@ -19,7 +19,7 @@ func main() {
 	fmt.Println("filePath")
 	fmt.Println(str)
 
-	cfg, err := serverConfig.GetConfig()
+	cfg, err := serverconfig.GetConfig()
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -28,13 +28,15 @@ func main() {
 	fmt.Println("server")
 	fmt.Println(cfg.ServerAddres)
 
-	urlMap, err := storage.NewUrlMap(cfg.FilePath)
+	urlMap, err := storage.NewURLMap(cfg.FilePath)
+
 	defer urlMap.Close()
+
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	r := handlers.NewShortenerHandler(urlMap, cfg.BaseUrl)
+	r := handlers.NewShortenerHandler(urlMap, cfg.BaseURL)
 	server := &http.Server{
 		Addr:    cfg.ServerAddres,
 		Handler: r,

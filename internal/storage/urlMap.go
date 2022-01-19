@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
 	"sync"
 )
@@ -16,19 +17,19 @@ type fileData struct {
 	Data []fileRecord `json:"data"`
 }
 type fileRecord struct {
-	Id  int    `json:"id"`
-	Url string `json:"url"`
+	ID  int    `json:"id"`
+	URL string `json:"url"`
 }
 
 type URLMap struct {
 	data    *sync.Map
-	Count   int
+	count   int
 	file    *os.File
 	scanner *bufio.Scanner
 	writer  *bufio.Writer
 }
 
-func NewUrlMap(FilePath string) (*URLMap, error) {
+func NewURLMap(FilePath string) (*URLMap, error) {
 	file, err := os.OpenFile(FilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		return nil, err
@@ -38,7 +39,7 @@ func NewUrlMap(FilePath string) (*URLMap, error) {
 		scanner: bufio.NewScanner(file),
 		writer:  bufio.NewWriter(file),
 		data:    &sync.Map{},
-		Count:   0,
+		count:   0,
 	}
 	if err = newURLMap.getDataFromFile(); err != nil {
 		return nil, err
@@ -46,12 +47,19 @@ func NewUrlMap(FilePath string) (*URLMap, error) {
 	return newURLMap, nil
 }
 
-func (m *URLMap) Close() error {
-	return m.file.Close()
+func (m *URLMap) GetCount() int {
+	return m.count
+}
+
+func (m *URLMap) Close() {
+	err := m.file.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (m *URLMap) getDataFromFile() error {
-	dataArray := make([]*fileRecord, 0, 0)
+	dataArray := make([]*fileRecord, 0)
 	for m.scanner.Scan() {
 		data := m.scanner.Bytes()
 		record := &fileRecord{}
@@ -65,7 +73,7 @@ func (m *URLMap) getDataFromFile() error {
 		return err
 	}
 	for _, val := range dataArray {
-		m.Count = m.setNewValToMap(val)
+		m.count = m.setNewValToMap(val)
 	}
 
 	return nil
@@ -77,9 +85,9 @@ type GetSet interface {
 }
 
 func (m *URLMap) setNewValToMap(record *fileRecord) int {
-	m.Count = record.Id
-	m.data.Store(record.Id, record.Url)
-	return m.Count
+	m.count = record.ID
+	m.data.Store(record.ID, record.URL)
+	return m.count
 }
 
 func (m *URLMap) putFileRecord(record *fileRecord) error {
@@ -99,14 +107,14 @@ func (m *URLMap) putFileRecord(record *fileRecord) error {
 }
 
 func (m *URLMap) Set(val string) (int, error) {
-	m.Count++
-	record := &fileRecord{Id: m.Count, Url: val}
+	m.count++
+	record := &fileRecord{ID: m.count, URL: val}
 	err := m.putFileRecord(record)
 	if err != nil {
 		return 0, err
 	}
-	m.data.Store(m.Count, val)
-	return m.Count, nil
+	m.data.Store(m.count, val)
+	return m.count, nil
 }
 func (m *URLMap) Get(key int) (string, error) {
 	if m.data == nil {

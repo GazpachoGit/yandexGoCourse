@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
@@ -13,8 +12,8 @@ import (
 
 type ShortenerHandler struct {
 	*chi.Mux
-	UrlMap  storage.GetSet
-	BaseUrl string
+	URLMap  storage.GetSet
+	BaseURL string
 }
 
 type ShortenerRequestBoby struct {
@@ -25,18 +24,18 @@ type ShortenerResponseBoby struct {
 	Result string `json:"result"`
 }
 
-func NewShortenerHandler(urlMapInput storage.GetSet, BaseUrl string) *ShortenerHandler {
+func NewShortenerHandler(urlMapInput storage.GetSet, BaseURL string) *ShortenerHandler {
 	h := &ShortenerHandler{
 		Mux:     chi.NewMux(),
-		UrlMap:  urlMapInput,
-		BaseUrl: BaseUrl,
+		URLMap:  urlMapInput,
+		BaseURL: BaseURL,
 	}
 	h.Post("/", h.NewShortURL())
 	h.Get("/{id}", h.GetShortURL())
-	h.Post("/api/shorten", h.NewShortURLByJson())
+	h.Post("/api/shorten", h.NewShortURLByJSON())
 	return h
 }
-func (h *ShortenerHandler) NewShortURLByJson() http.HandlerFunc {
+func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -51,13 +50,13 @@ func (h *ShortenerHandler) NewShortURLByJson() http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		id, err := h.UrlMap.Set(requestBody.URL)
+		id, err := h.URLMap.Set(requestBody.URL)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		url := h.BaseUrl + strconv.Itoa(id)
+		url := h.BaseURL + strconv.Itoa(id)
 		responseBody := &ShortenerResponseBoby{Result: url}
 		requestBodyJson, err := json.Marshal(responseBody)
 		if err != nil {
@@ -83,24 +82,17 @@ func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 		w.WriteHeader(http.StatusCreated)
-		id, err := h.UrlMap.Set(s)
+		id, err := h.URLMap.Set(s)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		url := h.BaseUrl + strconv.Itoa(id)
+		url := h.BaseURL + strconv.Itoa(id)
 		w.Write([]byte(url))
 	}
 }
-func (h *ShortenerHandler) formUrl(r *http.Request, id int) string {
-	url := url.URL{
-		Scheme: "http",
-		Host:   r.Host,
-		Path:   "/" + strconv.Itoa(id),
-	}
-	return url.String()
-}
+
 func (h *ShortenerHandler) GetShortURL() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s := chi.URLParam(r, "id")
@@ -113,7 +105,7 @@ func (h *ShortenerHandler) GetShortURL() http.HandlerFunc {
 			http.Error(w, "incorrect id", http.StatusBadRequest)
 			return
 		}
-		if res, err := h.UrlMap.Get(i); err != nil {
+		if res, err := h.URLMap.Get(i); err != nil {
 			if err.Error() == storage.ErrNotFound {
 				http.Error(w, err.Error(), http.StatusNotFound)
 				return

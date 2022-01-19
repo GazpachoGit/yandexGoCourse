@@ -58,9 +58,9 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 
 func TestRouter(t *testing.T) {
 	cfg, _ := serverConfig.GetConfig()
-	urlMap, _ := storage.NewUrlMap(cfg.FilePath)
+	urlMap, _ := storage.NewURLMap(cfg.FilePath)
 
-	r := NewShortenerHandler(urlMap, cfg.BaseUrl)
+	r := NewShortenerHandler(urlMap, cfg.BaseURL)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
@@ -78,7 +78,7 @@ func TestRouter(t *testing.T) {
 			body:   []byte("http://ya.ru"),
 			want: &want{
 				code:     http.StatusCreated,
-				response: cfg.BaseUrl + strconv.Itoa(urlMap.Count+1),
+				response: cfg.BaseURL + strconv.Itoa(urlMap.GetCount()+1),
 			},
 		},
 		{
@@ -88,7 +88,7 @@ func TestRouter(t *testing.T) {
 			body:   []byte("https://google.com"),
 			want: &want{
 				code:     http.StatusCreated,
-				response: cfg.BaseUrl + strconv.Itoa(urlMap.Count+2),
+				response: cfg.BaseURL + strconv.Itoa(urlMap.GetCount()+2),
 			},
 		},
 		{
@@ -140,7 +140,7 @@ func TestRouter(t *testing.T) {
 			body:   []byte("{\"url\":\"http://yandex.ru\"}"),
 			want: &want{
 				code:     http.StatusCreated,
-				response: "{\"result\":\"" + cfg.BaseUrl + strconv.Itoa(urlMap.Count+3) + "\"}",
+				response: "{\"result\":\"" + cfg.BaseURL + strconv.Itoa(urlMap.GetCount()+3) + "\"}",
 			},
 		},
 		{
