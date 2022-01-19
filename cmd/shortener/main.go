@@ -26,7 +26,12 @@ func main() {
 
 	urlMap, err := storage.NewURLMap(cfg.FilePath)
 
-	defer urlMap.Close()
+	defer func() {
+		err := urlMap.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	if err != nil {
 		log.Fatal(err)

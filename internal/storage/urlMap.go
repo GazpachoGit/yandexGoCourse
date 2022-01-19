@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"log"
 	"os"
 	"sync"
 )
@@ -51,11 +50,8 @@ func (m *URLMap) GetCount() int {
 	return m.count
 }
 
-func (m *URLMap) Close() {
-	err := m.file.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
+func (m *URLMap) Close() error {
+	return m.file.Close()
 }
 
 func (m *URLMap) getDataFromFile() error {

@@ -2,7 +2,7 @@ package serverconfig
 
 import (
 	"flag"
-	"os"
+	"fmt"
 
 	"github.com/caarlos0/env"
 )
@@ -15,14 +15,28 @@ type Config struct {
 
 func GetConfig() (*Config, error) {
 
-	os.Setenv("FILE_STORAGE_PATH", "../../internal/storage/storage.txt")
-	os.Setenv("SERVER_ADDRESS", ":8080")
-	os.Setenv("BASE_URL", "http://localhost:8080/")
+	// os.Setenv("FILE_STORAGE_PATH", "../../internal/storage/storage.txt")
+	// os.Setenv("SERVER_ADDRESS", ":8080")
+	// os.Setenv("BASE_URL", "http://localhost:8080/")
 
 	cfg := &Config{}
 	err := env.Parse(cfg)
 	if err != nil {
 		return nil, err
+	}
+
+	fmt.Println("env filePath: " + cfg.FilePath)
+	fmt.Println("env ServerAddres: " + cfg.ServerAddres)
+	fmt.Println("env BaseURL: " + cfg.BaseURL)
+
+	if cfg.FilePath == "" {
+		cfg.FilePath = "storage.txt"
+	}
+	if cfg.ServerAddres == "" {
+		cfg.ServerAddres = ":8080"
+	}
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = "http://localhost:8080/"
 	}
 
 	FilePath := flag.String("f", "", "path to storage file")
