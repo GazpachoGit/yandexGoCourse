@@ -3,8 +3,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 
 	serverconfig "github.com/GazpachoGit/yandexGoCourse/internal/config"
 	"github.com/GazpachoGit/yandexGoCourse/internal/handlers"
@@ -41,7 +44,23 @@ func main() {
 		Addr:    cfg.ServerAddres,
 		Handler: r,
 	}
-	log.Fatal(server.ListenAndServe())
+	ch := make(chan struct{})
+	go func() {
+		sigint := make(chan os.Signal, 1)
 
-	//http.ListenAndServe(":8080", r)
+		signal.Notify(sigint, os.Interrupt)
+
+		<-sigint
+		log.Println("interrupt is catched")
+
+		if err := server.Shutdown(context.Background()); err != nil {
+			log.Printf("HTTP server Shutdown: %v", err)
+		}
+		log.Println("server stopped")
+		close(ch)
+	}()
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("listen: %s\n", err)
+	}
+	<-ch
 }
