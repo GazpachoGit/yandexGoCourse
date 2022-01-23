@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
@@ -88,7 +89,11 @@ func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 			return
 		}
 
-		url := h.BaseURL + strconv.Itoa(id)
+		url, err := h.formURL(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		w.Write([]byte(url))
 	}
 }
@@ -118,4 +123,16 @@ func (h *ShortenerHandler) GetShortURL() http.HandlerFunc {
 			w.WriteHeader(http.StatusTemporaryRedirect)
 		}
 	}
+}
+func (h *ShortenerHandler) formURL(id int) (string, error) {
+	u, err := url.ParseRequestURI(h.BaseURL)
+	if err != nil {
+		return "", err
+	}
+	output := url.URL{
+		Scheme: u.Scheme,
+		Host:   u.Host,
+		Path:   "/" + strconv.Itoa(id),
+	}
+	return output.String(), nil
 }

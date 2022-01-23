@@ -22,20 +22,27 @@ func GetConfig() (*Config, error) {
 	ServerAddres := flag.String("a", "", "address server to start")
 	BaseURL := flag.String("b", "", "url storage address")
 	flag.Parse()
-	if *FilePath != "" {
-		cfg.FilePath = *FilePath
-	}
-	if *ServerAddres != "" {
-		cfg.ServerAddres = *ServerAddres
-	}
-	if *BaseURL != "" {
-		cfg.BaseURL = *BaseURL
-	}
 
 	//env
-	err := env.Parse(cfg)
+	envCfg := &Config{}
+	err := env.Parse(envCfg)
 	if err != nil {
 		return nil, err
+	}
+	if envCfg.FilePath != "" {
+		cfg.FilePath = envCfg.FilePath
+	} else {
+		cfg.FilePath = *FilePath
+	}
+	if envCfg.ServerAddres != "" {
+		cfg.ServerAddres = envCfg.ServerAddres
+	} else {
+		cfg.ServerAddres = *ServerAddres
+	}
+	if envCfg.BaseURL != "" {
+		cfg.BaseURL = envCfg.BaseURL
+	} else {
+		cfg.BaseURL = *BaseURL
 	}
 
 	log.Println("env filePath: " + cfg.FilePath)
