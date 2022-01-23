@@ -57,7 +57,11 @@ func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 			return
 		}
 
-		url := h.BaseURL + strconv.Itoa(id)
+		url, err := h.formURL(id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		responseBody := &ShortenerResponseBoby{Result: url}
 		requestBodyJSON, err := json.Marshal(responseBody)
 		if err != nil {
