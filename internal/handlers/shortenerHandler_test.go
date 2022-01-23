@@ -1,4 +1,4 @@
-//go test github.com/GazpachoGit/yandexGoCourse2/internal/handlers -run TestRouter -count 1
+//go test github.com/GazpachoGit/yandexGoCourse/internal/handlers -run TestRouter -count 1
 package handlers
 
 import (

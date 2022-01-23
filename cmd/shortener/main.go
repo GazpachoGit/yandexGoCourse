@@ -3,7 +3,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -20,9 +19,9 @@ func main() {
 		return
 	}
 
-	fmt.Println("filePath: " + cfg.FilePath)
-	fmt.Println("ServerAddres: " + cfg.ServerAddres)
-	fmt.Println("BaseURL: " + cfg.BaseURL)
+	log.Println("result filePath: " + cfg.FilePath)
+	log.Println("result ServerAddres: " + cfg.ServerAddres)
+	log.Println("result BaseURL: " + cfg.BaseURL)
 
 	urlMap, err := storage.NewURLMap(cfg.FilePath)
 
