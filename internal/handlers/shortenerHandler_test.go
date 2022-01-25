@@ -6,8 +6,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
+	serverConfig "github.com/GazpachoGit/yandexGoCourse/internal/config"
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,8 +57,10 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 }
 
 func TestRouter(t *testing.T) {
-	urlMap := &storage.URLMap{}
-	r := NewShortenerHandler(urlMap)
+	cfg, _ := serverConfig.GetConfig()
+	urlMap, _ := storage.NewURLMap(cfg.FilePath)
+
+	r := NewShortenerHandler(urlMap, cfg.BaseURL)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
@@ -74,17 +78,17 @@ func TestRouter(t *testing.T) {
 			body:   []byte("http://ya.ru"),
 			want: &want{
 				code:     http.StatusCreated,
-				response: ts.URL + "/1",
+				response: cfg.BaseURL + strconv.Itoa(urlMap.GetCount()+1),
 			},
 		},
 		{
 			name:   "post 2",
 			method: http.MethodPost,
 			path:   "/",
-			body:   []byte("http://google.ru"),
+			body:   []byte("https://google.com"),
 			want: &want{
 				code:     http.StatusCreated,
-				response: ts.URL + "/2",
+				response: cfg.BaseURL + strconv.Itoa(urlMap.GetCount()+2),
 			},
 		},
 		{
@@ -104,7 +108,7 @@ func TestRouter(t *testing.T) {
 			body:   nil,
 			want: &want{
 				code:   http.StatusTemporaryRedirect,
-				header: "http://google.ru",
+				header: "https://google.com",
 			},
 		},
 		{
@@ -129,17 +133,37 @@ func TestRouter(t *testing.T) {
 				response: storage.ErrNotFound + "\n",
 			},
 		},
+		{
+			name:   "post json",
+			method: http.MethodPost,
+			path:   "/api/shorten",
+			body:   []byte("{\"url\":\"http://yandex.ru\"}"),
+			want: &want{
+				code:     http.StatusCreated,
+				response: "{\"result\":\"" + cfg.BaseURL + strconv.Itoa(urlMap.GetCount()+3) + "\"}",
+			},
+		},
+		{
+			name:   "post json without url",
+			method: http.MethodPost,
+			path:   "/api/shorten",
+			body:   []byte("{}"),
+			want: &want{
+				code:     http.StatusBadRequest,
+				response: "url is empty\n",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		resp := testRequest(t, ts, tt.method, tt.path, tt.body)
-		assert.Equal(t, tt.want.code, resp.StatusCode)
+		assert.Equal(t, tt.want.code, resp.StatusCode, tt.name)
 		if tt.method == http.MethodPost {
-			assert.Equal(t, tt.want.response, resp.body)
+			assert.Equal(t, tt.want.response, resp.body, tt.name)
 		} else {
-			assert.Equal(t, tt.want.header, resp.Header.Get("Location"))
+			assert.Equal(t, tt.want.header, resp.Header.Get("Location"), tt.name)
 			if tt.want.response != "" {
-				assert.Equal(t, tt.want.response, resp.body)
+				assert.Equal(t, tt.want.response, resp.body, tt.name)
 			}
 		}
 	}
