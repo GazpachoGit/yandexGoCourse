@@ -9,8 +9,7 @@ import (
 
 type gzipWriter struct {
 	http.ResponseWriter
-	Writer      io.Writer
-	canCompress bool
+	Writer io.Writer
 }
 
 func (w gzipWriter) Write(b []byte) (int, error) {

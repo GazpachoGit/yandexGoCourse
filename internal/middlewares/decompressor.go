@@ -31,7 +31,7 @@ func compress(data []byte) (io.Reader, error) {
 
 func DecompressHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rEncoding := r.Header.Get("Content-Encoding")
+		rEncoding := strings.Join(r.Header.Values("Content-Encoding"), ",")
 		if strings.Contains(rEncoding, "gzip") {
 			gz, err := gzip.NewReader(r.Body)
 			if err != nil {
