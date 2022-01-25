@@ -9,19 +9,23 @@ import (
 
 type gzipWriter struct {
 	http.ResponseWriter
-	Writer io.Writer
+	Writer      io.Writer
+	canCompress bool
 }
 
 func (w gzipWriter) Write(b []byte) (int, error) {
-	return w.Writer.Write(b)
+	rContentType := strings.Join(w.Header().Values("Content-Type"), ",")
+	if checkContentType(rContentType) {
+		return w.Writer.Write(b)
+	} else {
+		return w.Write(b)
+	}
 }
 
 func CompressHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rEncoding := strings.Join(r.Header.Values("Accept-Encoding"), ",")
-		rContentType := strings.Join(r.Header.Values("Content-Type"), ",")
-
-		if strings.Contains(rEncoding, "gzip") && checkContentType(rContentType) {
+		if strings.Contains(rEncoding, "gzip") {
 			gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -31,6 +35,7 @@ func CompressHandler(next http.Handler) http.Handler {
 
 			w.Header().Set("Content-Encoding", "gzip")
 			next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
+			return
 		}
 		next.ServeHTTP(w, r)
 	})

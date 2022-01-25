@@ -36,6 +36,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 		req, err = http.NewRequest(method, ts.URL+path, bytes.NewBuffer(body))
 	}
 	require.NoError(t, err)
+
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
