@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/GazpachoGit/yandexGoCourse/internal/middlewares"
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
 	"github.com/go-chi/chi"
 )
@@ -31,6 +32,8 @@ func NewShortenerHandler(urlMapInput storage.GetSet, BaseURL string) *ShortenerH
 		URLMap:  urlMapInput,
 		BaseURL: BaseURL,
 	}
+	h.Use(middlewares.CompressHandler)
+	h.Use(middlewares.DecompressHandler)
 	h.Post("/", h.NewShortURL())
 	h.Get("/{id}", h.GetShortURL())
 	h.Post("/api/shorten", h.NewShortURLByJSON())
