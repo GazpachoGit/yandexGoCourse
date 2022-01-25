@@ -32,8 +32,9 @@ func NewShortenerHandler(urlMapInput storage.GetSet, BaseURL string) *ShortenerH
 		URLMap:  urlMapInput,
 		BaseURL: BaseURL,
 	}
-	h.Use(middlewares.CompressHandler)
-	//h.Use(middlewares.DecompressHandler)
+	compressor := &middlewares.Compressor{}
+	h.Use(compressor.CompressHandler)
+	h.Use(middlewares.DecompressHandler)
 	h.Post("/", h.NewShortURL())
 	h.Get("/{id}", h.GetShortURL())
 	h.Post("/api/shorten", h.NewShortURLByJSON())

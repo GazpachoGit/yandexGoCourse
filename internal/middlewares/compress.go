@@ -22,19 +22,28 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 	}
 }
 
-func CompressHandler(next http.Handler) http.Handler {
+type Compressor struct {
+	gz *gzip.Writer
+}
+
+func (comp *Compressor) CompressHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rEncoding := strings.Join(r.Header.Values("Accept-Encoding"), ",")
 		if strings.Contains(rEncoding, "gzip") {
-			gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
+			if comp.gz == nil {
+				gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				comp.gz = gz
+			} else {
+				comp.gz.Reset(w)
 			}
-			defer gz.Close()
+			defer comp.gz.Close()
 
 			w.Header().Set("Content-Encoding", "gzip")
-			next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
+			next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: comp.gz}, r)
 			return
 		}
 		next.ServeHTTP(w, r)
