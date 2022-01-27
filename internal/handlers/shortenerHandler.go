@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -35,6 +36,7 @@ func NewShortenerHandler(urlMapInput storage.GetSet, BaseURL string) *ShortenerH
 	compressor := &middlewares.Compressor{}
 	h.Use(compressor.CompressHandler)
 	h.Use(middlewares.DecompressHandler)
+	h.Use(middlewares.CockieHandler)
 	h.Post("/", h.NewShortURL())
 	h.Get("/{id}", h.GetShortURL())
 	h.Post("/api/shorten", h.NewShortURLByJSON())
@@ -79,6 +81,8 @@ func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 
 func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		username := r.Context().Value("user")
+		fmt.Println(username)
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
