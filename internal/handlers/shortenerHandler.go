@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -62,10 +63,12 @@ func (h *ShortenerHandler) initBaseURL() error {
 func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username := r.Context().Value("user").(string)
+		log.Println("username: ", username)
 		if res, err := h.db.GetUserURLs(username); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		} else {
+			log.Println("records length: ", len(res))
 			if res == nil {
 				http.Error(w, "no urls for this user", http.StatusNoContent)
 				return
