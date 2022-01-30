@@ -5,9 +5,11 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
-	"time"
+	"strconv"
 )
 
 var secretkey = []byte("$ecret key")
@@ -27,9 +29,17 @@ func CockieHandler(next http.Handler) http.Handler {
 		var currentUC *userCookie
 		cookie, err := r.Cookie("token")
 		if err != nil {
-			currentUC = setCookie()
+			currentUC, err = setCookie()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		} else {
-			currentUC = getUser(cookie)
+			currentUC, err = getUser(cookie)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 		log.Println("is user new: ", currentUC.New)
 		if currentUC.New {
@@ -40,9 +50,12 @@ func CockieHandler(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
-func setCookie() *userCookie {
-	now := time.Now()
-	user := now.Format("02 Jan 06 3:04:05PM")
+func setCookie() (*userCookie, error) {
+	user, err := RandBytes()
+	fmt.Println(len(user))
+	if err != nil {
+		return nil, err
+	}
 	h := hmac.New(sha256.New, secretkey)
 	h.Write([]byte(user))
 	token := h.Sum(nil)
@@ -55,10 +68,10 @@ func setCookie() *userCookie {
 		Value:  userEncode + tockenEncode,
 		MaxAge: 300,
 	}
-	return &userCookie{cookie, user, true}
+	return &userCookie{cookie, user, true}, nil
 }
 
-func getUser(cookie *http.Cookie) *userCookie {
+func getUser(cookie *http.Cookie) (*userCookie, error) {
 	value := cookie.Value
 	if value != "" {
 		decodedValue, err := hex.DecodeString(value)
@@ -68,9 +81,14 @@ func getUser(cookie *http.Cookie) *userCookie {
 			h.Write(user)
 			sign := h.Sum(nil)
 			if hmac.Equal(sign, decodedValue[19:]) {
-				return &userCookie{token: cookie, User: string(user), New: false}
+				return &userCookie{token: cookie, User: string(user), New: false}, nil
 			}
 		}
 	}
 	return setCookie()
+}
+
+func RandBytes() (string, error) {
+	b := rand.Int()
+	return strconv.Itoa(b), nil
 }
