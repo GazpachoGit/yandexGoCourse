@@ -15,8 +15,9 @@ import (
 
 type ShortenerHandler struct {
 	*chi.Mux
-	db      storage.IStorage
-	BaseURL string
+	db            storage.IStorage
+	BaseURLstring string
+	BaseURL       *url.URL
 }
 
 type ShortenerRequestBoby struct {
@@ -27,11 +28,14 @@ type ShortenerResponseBoby struct {
 	Result string `json:"result"`
 }
 
-func NewShortenerHandler(urlMapInput storage.IStorage, BaseURL string) *ShortenerHandler {
+func NewShortenerHandler(urlMapInput storage.IStorage, BaseURL string) (*ShortenerHandler, error) {
 	h := &ShortenerHandler{
-		Mux:     chi.NewMux(),
-		db:      urlMapInput,
-		BaseURL: BaseURL,
+		Mux:           chi.NewMux(),
+		db:            urlMapInput,
+		BaseURLstring: BaseURL,
+	}
+	if err := h.initBaseURL(); err != nil {
+		return nil, err
 	}
 	compressor := &middlewares.Compressor{}
 	h.Use(compressor.CompressHandler)
@@ -43,7 +47,16 @@ func NewShortenerHandler(urlMapInput storage.IStorage, BaseURL string) *Shortene
 	h.Get("/user/urls", h.GetUserURLs())
 	h.Get("/ping", h.CheckDBConnection())
 	h.Post("/api/shorten/batch", h.SetBatchURLs())
-	return h
+	return h, nil
+}
+
+func (h *ShortenerHandler) initBaseURL() error {
+	u, err := url.ParseRequestURI(h.BaseURLstring)
+	if err != nil {
+		return err
+	}
+	h.BaseURL = u
+	return nil
 }
 
 func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
@@ -59,16 +72,9 @@ func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
 			}
 			URLList := make([]model.HandlerURLInfo, 0)
 			for _, url := range res {
-				short_url, err := h.formURL(url.Id)
-
-				if err != nil {
-					http.Error(w, "BaseURL is incorrect", http.StatusInternalServerError)
-					return
-				}
-
 				URLList = append(URLList, model.HandlerURLInfo{
 					Original_url: url.Original_url,
-					Short_url:    short_url,
+					Short_url:    h.formURL(url.Id),
 				})
 			}
 			respBody, err := json.Marshal(URLList)
@@ -101,17 +107,10 @@ func (h *ShortenerHandler) SetBatchURLs() http.HandlerFunc {
 		}
 		URLList := make([]model.HandlerURLInfo, 0)
 		for k, v := range *dbUrls {
-			short_url, err := h.formURL(v.Id)
-
-			if err != nil {
-				http.Error(w, "BaseURL is incorrect", http.StatusInternalServerError)
-				return
-			}
 			URLList = append(URLList, model.HandlerURLInfo{
 				Correlation_id: k,
-				Short_url:      short_url,
+				Short_url:      h.formURL(v.Id),
 			})
-
 		}
 		respBody, err := json.Marshal(URLList)
 		if err != nil {
@@ -146,11 +145,7 @@ func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 			return
 		}
 
-		url, err := h.formURL(id)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		url := h.formURL(id)
 		responseBody := &ShortenerResponseBoby{Result: url}
 		requestBodyJSON, err := json.Marshal(responseBody)
 		if err != nil {
@@ -183,11 +178,7 @@ func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 			return
 		}
 
-		url, err := h.formURL(id)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		url := h.formURL(id)
 		w.Write([]byte(url))
 	}
 }
@@ -227,15 +218,11 @@ func (h *ShortenerHandler) CheckDBConnection() http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 	}
 }
-func (h *ShortenerHandler) formURL(id int) (string, error) {
-	u, err := url.ParseRequestURI(h.BaseURL)
-	if err != nil {
-		return "", err
-	}
+func (h *ShortenerHandler) formURL(id int) string {
 	output := url.URL{
-		Scheme: u.Scheme,
-		Host:   u.Host,
+		Scheme: h.BaseURL.Scheme,
+		Host:   h.BaseURL.Host,
 		Path:   "/" + strconv.Itoa(id),
 	}
-	return output.String(), nil
+	return output.String()
 }

@@ -32,7 +32,11 @@ func main() {
 		log.Fatalln(err)
 		return
 	}
-	r := handlers.NewShortenerHandler(db, cfg.BaseURL)
+	r, err := handlers.NewShortenerHandler(db, cfg.BaseURL)
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
 	server := &http.Server{
 		Addr:    cfg.ServerAddres,
 		Handler: r,
