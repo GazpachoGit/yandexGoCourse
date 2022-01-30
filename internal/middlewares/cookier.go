@@ -17,6 +17,10 @@ type userCookie struct {
 	User  string
 	New   bool
 }
+type UserInfo struct {
+	UserID string
+	New    bool
+}
 
 func CockieHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +35,7 @@ func CockieHandler(next http.Handler) http.Handler {
 		if currentUC.New {
 			http.SetCookie(w, currentUC.token)
 		}
-		//context.WithValue(ctx, "user", currentUC.User)
+
 		ctx := context.WithValue(r.Context(), "user", currentUC.User)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

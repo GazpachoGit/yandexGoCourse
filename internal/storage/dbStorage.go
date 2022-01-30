@@ -79,7 +79,7 @@ func (p *PgDb) createTables() error {
        	original_url TEXT NOT NULL,
 	   	user_id TEXT NOT NULL);
     `
-	if _, err := p.dbConn.Exec("DROP TABLE public.urls_torn"); err != nil {
+	if _, err := p.dbConn.Exec("DROP TABLE IF EXISTS public.urls_torn"); err != nil {
 		return err
 	}
 	if _, err := p.dbConn.Exec(create_sql); err != nil {
