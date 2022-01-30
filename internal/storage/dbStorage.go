@@ -3,7 +3,6 @@ package storage
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"log"
 
 	"github.com/GazpachoGit/yandexGoCourse/internal/model"
@@ -44,7 +43,6 @@ func InitDb(psqlInfo string) (*PgDb, error) {
 	if err = p.createSqlStmts(); err != nil {
 		return p, err
 	}
-	fmt.Println("init end")
 
 	return p, nil
 

@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"log"
 	"net/http"
 	"time"
 )
@@ -26,6 +27,7 @@ func CockieHandler(next http.Handler) http.Handler {
 		} else {
 			currentUC = getUser(cookie)
 		}
+		log.Println("is user new: ", currentUC.New)
 		if currentUC.New == true {
 			http.SetCookie(w, currentUC.token)
 		}
