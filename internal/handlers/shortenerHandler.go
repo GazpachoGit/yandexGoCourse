@@ -76,8 +76,8 @@ func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
 			URLList := make([]model.HandlerURLInfo, 0)
 			for _, url := range res {
 				URLList = append(URLList, model.HandlerURLInfo{
-					Original_url: url.Original_url,
-					Short_url:    h.formURL(url.Id),
+					OriginalURL: url.OriginalURL,
+					ShortURL:    h.formURL(url.ID),
 				})
 			}
 			respBody, err := json.Marshal(URLList)
@@ -111,8 +111,8 @@ func (h *ShortenerHandler) SetBatchURLs() http.HandlerFunc {
 		URLList := make([]model.HandlerURLInfo, 0)
 		for k, v := range *dbUrls {
 			URLList = append(URLList, model.HandlerURLInfo{
-				Correlation_id: k,
-				Short_url:      h.formURL(v.Id),
+				CorrelationID: k,
+				ShortURL:      h.formURL(v.ID),
 			})
 		}
 		respBody, err := json.Marshal(URLList)

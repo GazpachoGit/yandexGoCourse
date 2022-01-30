@@ -28,7 +28,7 @@ func CockieHandler(next http.Handler) http.Handler {
 			currentUC = getUser(cookie)
 		}
 		log.Println("is user new: ", currentUC.New)
-		if currentUC.New == true {
+		if currentUC.New {
 			http.SetCookie(w, currentUC.token)
 		}
 		//context.WithValue(ctx, "user", currentUC.User)

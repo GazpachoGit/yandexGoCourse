@@ -79,6 +79,9 @@ func (p *PgDb) createTables() error {
        	original_url TEXT NOT NULL,
 	   	user_id TEXT NOT NULL);
     `
+	if _, err := p.dbConn.Exec("DROP TABLE public.urls_torn"); err != nil {
+		return err
+	}
 	if _, err := p.dbConn.Exec(create_sql); err != nil {
 		return err
 	}
@@ -144,19 +147,19 @@ func (p *PgDb) SetBatchURLs(input *[]*model.HandlerURLInfo, username string) (*m
 	defer tx.Rollback()
 	output := make(map[string]*model.StorageURLInfo)
 	for _, v := range *input {
-		if v.Correlation_id == "" {
+		if v.CorrelationID == "" {
 			return nil, errors.New("empty correlation")
 		}
-		if _, ok := output[v.Correlation_id]; ok {
+		if _, ok := output[v.CorrelationID]; ok {
 			return nil, errors.New("dublicate correlation")
 		}
-		id, err := p.Set(v.Original_url, username)
+		id, err := p.Set(v.OriginalURL, username)
 		if err != nil {
 			return nil, err
 		}
-		output[v.Correlation_id] = &model.StorageURLInfo{
-			Id:           id,
-			Original_url: v.Original_url,
+		output[v.CorrelationID] = &model.StorageURLInfo{
+			ID:          id,
+			OriginalURL: v.OriginalURL,
 		}
 	}
 	return &output, tx.Commit()
