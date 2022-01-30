@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/GazpachoGit/yandexGoCourse/internal/model"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
@@ -19,12 +20,6 @@ type PgDb struct {
 	sqlSelectURL      *sqlx.Stmt
 	sqlInsertURL      *sqlx.Stmt
 	sqlSelectUserURLs *sqlx.Stmt
-}
-
-type URLInfo struct {
-	Id           int    `db:"id"`
-	Original_url string `db:"original_url"`
-	User_id      string `db:"user_id"`
 }
 
 func InitDb(psqlInfo string) (*PgDb, error) {
@@ -136,12 +131,37 @@ func (p *PgDb) Get(id int) (string, error) {
 	return original_url, nil
 }
 
-func (p *PgDb) GetUserURLs(user string) ([]URLInfo, error) {
-	var URLs []URLInfo
+func (p *PgDb) GetUserURLs(user string) ([]model.StorageURLInfo, error) {
+	var URLs []model.StorageURLInfo
 	if err := p.sqlSelectUserURLs.Select(&URLs, user); err != nil {
 		return nil, err
 	}
 	return URLs, nil
+}
+func (p *PgDb) SetBatchURLs(input *[]*model.HandlerURLInfo, username string) (*map[string]*model.StorageURLInfo, error) {
+	tx, err := p.dbConn.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	output := make(map[string]*model.StorageURLInfo)
+	for _, v := range *input {
+		if v.Correlation_id == "" {
+			return nil, errors.New("empty correlation")
+		}
+		if _, ok := output[v.Correlation_id]; ok {
+			return nil, errors.New("dublicate correlation")
+		}
+		id, err := p.Set(v.Original_url, username)
+		if err != nil {
+			return nil, err
+		}
+		output[v.Correlation_id] = &model.StorageURLInfo{
+			Id:           id,
+			Original_url: v.Original_url,
+		}
+	}
+	return &output, tx.Commit()
 }
 
 // func main() {

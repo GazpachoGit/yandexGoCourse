@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/GazpachoGit/yandexGoCourse/internal/middlewares"
+	"github.com/GazpachoGit/yandexGoCourse/internal/model"
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
 	"github.com/go-chi/chi"
 )
@@ -26,12 +27,6 @@ type ShortenerResponseBoby struct {
 	Result string `json:"result"`
 }
 
-type URLInfo struct {
-	Correlation_id string `json:"correlation_id,omitempty"`
-	Original_url   string `json:"original_url,omitempty"`
-	Short_url      string `json:"short_url,omitempty"`
-}
-
 func NewShortenerHandler(urlMapInput storage.IStorage, BaseURL string) *ShortenerHandler {
 	h := &ShortenerHandler{
 		Mux:     chi.NewMux(),
@@ -47,6 +42,7 @@ func NewShortenerHandler(urlMapInput storage.IStorage, BaseURL string) *Shortene
 	h.Post("/api/shorten", h.NewShortURLByJSON())
 	h.Get("/user/urls", h.GetUserURLs())
 	h.Get("/ping", h.CheckDBConnection())
+	h.Post("/api/shorten/batch", h.SetBatchURLs())
 	return h
 }
 
@@ -61,7 +57,7 @@ func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
 				http.Error(w, "no urls for this user", http.StatusNoContent)
 				return
 			}
-			URLList := make([]URLInfo, 0)
+			URLList := make([]model.HandlerURLInfo, 0)
 			for _, url := range res {
 				short_url, err := h.formURL(url.Id)
 
@@ -70,7 +66,7 @@ func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
 					return
 				}
 
-				URLList = append(URLList, URLInfo{
+				URLList = append(URLList, model.HandlerURLInfo{
 					Original_url: url.Original_url,
 					Short_url:    short_url,
 				})
@@ -85,6 +81,46 @@ func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
 			w.Write([]byte(respBody))
 		}
 
+	}
+}
+
+func (h *ShortenerHandler) SetBatchURLs() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username := r.Context().Value("user").(string)
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		requestBody := make([]*model.HandlerURLInfo, 0)
+		json.Unmarshal(b, &requestBody)
+		dbUrls, err := h.db.SetBatchURLs(&requestBody, username)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		URLList := make([]model.HandlerURLInfo, 0)
+		for k, v := range *dbUrls {
+			short_url, err := h.formURL(v.Id)
+
+			if err != nil {
+				http.Error(w, "BaseURL is incorrect", http.StatusInternalServerError)
+				return
+			}
+			URLList = append(URLList, model.HandlerURLInfo{
+				Correlation_id: k,
+				Short_url:      short_url,
+			})
+
+		}
+		respBody, err := json.Marshal(URLList)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(respBody))
 	}
 }
 
