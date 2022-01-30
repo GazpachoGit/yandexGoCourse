@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,7 +14,7 @@ import (
 
 type ShortenerHandler struct {
 	*chi.Mux
-	URLMap  storage.GetSet
+	db      storage.IStorage
 	BaseURL string
 }
 
@@ -27,10 +26,16 @@ type ShortenerResponseBoby struct {
 	Result string `json:"result"`
 }
 
-func NewShortenerHandler(urlMapInput storage.GetSet, BaseURL string) *ShortenerHandler {
+type URLInfo struct {
+	Correlation_id string `json:"correlation_id,omitempty"`
+	Original_url   string `json:"original_url,omitempty"`
+	Short_url      string `json:"short_url,omitempty"`
+}
+
+func NewShortenerHandler(urlMapInput storage.IStorage, BaseURL string) *ShortenerHandler {
 	h := &ShortenerHandler{
 		Mux:     chi.NewMux(),
-		URLMap:  urlMapInput,
+		db:      urlMapInput,
 		BaseURL: BaseURL,
 	}
 	compressor := &middlewares.Compressor{}
@@ -40,10 +45,52 @@ func NewShortenerHandler(urlMapInput storage.GetSet, BaseURL string) *ShortenerH
 	h.Post("/", h.NewShortURL())
 	h.Get("/{id}", h.GetShortURL())
 	h.Post("/api/shorten", h.NewShortURLByJSON())
+	h.Get("/user/urls", h.GetUserURLs())
+	h.Get("/ping", h.CheckDBConnection())
 	return h
 }
+
+func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username := r.Context().Value("user").(string)
+		if res, err := h.db.GetUserURLs(username); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		} else {
+			if res == nil {
+				http.Error(w, "no urls for this user", http.StatusNoContent)
+				return
+			}
+			URLList := make([]URLInfo, 0)
+			for _, url := range res {
+				short_url, err := h.formURL(url.Id)
+
+				if err != nil {
+					http.Error(w, "BaseURL is incorrect", http.StatusInternalServerError)
+					return
+				}
+
+				URLList = append(URLList, URLInfo{
+					Original_url: url.Original_url,
+					Short_url:    short_url,
+				})
+			}
+			respBody, err := json.Marshal(URLList)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte(respBody))
+		}
+
+	}
+}
+
 func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		username := r.Context().Value("user").(string)
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -57,7 +104,7 @@ func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		id, err := h.URLMap.Set(requestBody.URL)
+		id, err := h.db.Set(requestBody.URL, username)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -81,8 +128,7 @@ func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 
 func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username := r.Context().Value("user")
-		fmt.Println(username)
+		username := r.Context().Value("user").(string)
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -95,7 +141,7 @@ func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 		w.WriteHeader(http.StatusCreated)
-		id, err := h.URLMap.Set(s)
+		id, err := h.db.Set(s, username)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -122,7 +168,7 @@ func (h *ShortenerHandler) GetShortURL() http.HandlerFunc {
 			http.Error(w, "incorrect id", http.StatusBadRequest)
 			return
 		}
-		if res, err := h.URLMap.Get(i); err != nil {
+		if res, err := h.db.Get(i); err != nil {
 			if err.Error() == storage.ErrNotFound {
 				http.Error(w, err.Error(), http.StatusNotFound)
 				return
@@ -134,6 +180,15 @@ func (h *ShortenerHandler) GetShortURL() http.HandlerFunc {
 			w.Header().Set("Location", res)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 		}
+	}
+}
+func (h *ShortenerHandler) CheckDBConnection() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := h.db.PingDB(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	}
 }
 func (h *ShortenerHandler) formURL(id int) (string, error) {

@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	FilePath     string `env:"FILE_STORAGE_PATH"`
-	ServerAddres string `env:"SERVER_ADDRESS"`
-	BaseURL      string `env:"BASE_URL"`
+	FilePath           string `env:"FILE_STORAGE_PATH"`
+	ServerAddres       string `env:"SERVER_ADDRESS"`
+	BaseURL            string `env:"BASE_URL"`
+	DBConnectionString string `env:"DATABASE_DSN"`
 }
 
 func GetConfig() (*Config, error) {
@@ -21,11 +22,13 @@ func GetConfig() (*Config, error) {
 	FilePath := flag.String("f", "", "path to storage file")
 	ServerAddres := flag.String("a", "", "address server to start")
 	BaseURL := flag.String("b", "", "url storage address")
+	DBConnectionString := flag.String("d", "", "Database Connection String")
 	flag.Parse()
 
 	log.Println("flag filePath: " + *FilePath)
 	log.Println("flag ServerAddres: " + *ServerAddres)
 	log.Println("flag BaseURL: " + *BaseURL)
+	log.Println("flag DBConnectionString: " + *DBConnectionString)
 
 	//env
 	envCfg := &Config{}
@@ -37,6 +40,7 @@ func GetConfig() (*Config, error) {
 	log.Println("env filePath: " + envCfg.FilePath)
 	log.Println("env ServerAddres: " + envCfg.ServerAddres)
 	log.Println("env BaseURL: " + envCfg.BaseURL)
+	log.Println("env DBConnectionString: " + envCfg.DBConnectionString)
 
 	if envCfg.FilePath != "" {
 		cfg.FilePath = envCfg.FilePath
@@ -53,6 +57,11 @@ func GetConfig() (*Config, error) {
 	} else {
 		cfg.BaseURL = *BaseURL
 	}
+	if envCfg.DBConnectionString != "" {
+		cfg.DBConnectionString = envCfg.DBConnectionString
+	} else {
+		cfg.DBConnectionString = *DBConnectionString
+	}
 
 	//default
 	if cfg.FilePath == "" {
@@ -63,6 +72,9 @@ func GetConfig() (*Config, error) {
 	}
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "http://localhost:8080/"
+	}
+	if cfg.DBConnectionString == "" {
+		cfg.DBConnectionString = "host=localhost port=5432 user=postgres password=qwerty dbname=shortener sslmode=disable"
 	}
 
 	return cfg, nil

@@ -8,10 +8,6 @@ import (
 	"sync"
 )
 
-const (
-	ErrNotFound = "can't find id"
-)
-
 type fileData struct {
 	Data []fileRecord `json:"data"`
 }
@@ -73,11 +69,6 @@ func (m *URLMap) getDataFromFile() error {
 	}
 
 	return nil
-}
-
-type GetSet interface {
-	Set(string) (int, error)
-	Get(int) (string, error)
 }
 
 func (m *URLMap) setNewValToMap(record *fileRecord) int {

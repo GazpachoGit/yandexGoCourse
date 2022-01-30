@@ -26,20 +26,13 @@ func main() {
 	log.Println("result ServerAddres: " + cfg.ServerAddres)
 	log.Println("result BaseURL: " + cfg.BaseURL)
 
-	urlMap, err := storage.NewURLMap(cfg.FilePath)
-
-	defer func() {
-		err := urlMap.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
+	db, err := storage.InitDb(cfg.DBConnectionString)
+	defer db.Close()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 		return
 	}
-	r := handlers.NewShortenerHandler(urlMap, cfg.BaseURL)
+	r := handlers.NewShortenerHandler(db, cfg.BaseURL)
 	server := &http.Server{
 		Addr:    cfg.ServerAddres,
 		Handler: r,
