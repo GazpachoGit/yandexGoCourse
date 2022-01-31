@@ -5,7 +5,9 @@ import (
 	"errors"
 	"log"
 
+	myerrors "github.com/GazpachoGit/yandexGoCourse/internal/errors"
 	"github.com/GazpachoGit/yandexGoCourse/internal/model"
+	"github.com/jackc/pgerrcode"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
@@ -76,12 +78,12 @@ func (p *PgDb) Close() {
 func (p *PgDb) createTables() error {
 	create_sql := ` CREATE TABLE IF NOT EXISTS public.urls_torn (
 		id SERIAL NOT NULL PRIMARY KEY,
-       	original_url TEXT NOT NULL,
+       	original_url TEXT NOT NULL UNIQUE,
 	   	user_id TEXT NOT NULL);
     `
-	if _, err := p.dbConn.Exec("DROP TABLE IF EXISTS public.urls_torn"); err != nil {
-		return err
-	}
+	// if _, err := p.dbConn.Exec("DROP TABLE IF EXISTS public.urls_torn"); err != nil {
+	// 	return err
+	// }
 	if _, err := p.dbConn.Exec(create_sql); err != nil {
 		return err
 	}
@@ -89,7 +91,18 @@ func (p *PgDb) createTables() error {
 }
 
 func (p *PgDb) createSqlStmts() error {
-	if stmt, err := p.dbConn.Preparex("INSERT INTO public.urls_torn(original_url, user_id) VALUES($1, $2) RETURNING id"); err != nil {
+	insertSQL := `with stmt AS (INSERT INTO public.urls_torn(original_url, user_id)
+	VALUES ($1, $2) 
+	ON CONFLICT(original_url) do nothing
+	RETURNING id, false as conf)
+
+	select id, conf from stmt 
+	where id is not null
+	UNION ALL
+	select id, true from public.urls_torn
+	where original_url = $1 and not exists (select 1 from stmt)`
+
+	if stmt, err := p.dbConn.Preparex(insertSQL); err != nil {
 		return err
 	} else {
 		p.sqlInsertURL = stmt
@@ -109,17 +122,28 @@ func (p *PgDb) createSqlStmts() error {
 	return nil
 }
 
-func (p *PgDb) Set(original_url string, user string) (int, error) {
-	var id int
-	if err := p.sqlInsertURL.QueryRowx(original_url, user).Scan(&id); err != nil {
+func (p *PgDb) SetURL(original_url string, user string) (int, error) {
+	if insertInfo, err := p.Set(original_url, user); err != nil {
 		return 0, err
 	} else {
-		return int(id), nil
+		if insertInfo.Conf {
+			return insertInfo.ID, myerrors.NewInsertConflictError([]string{original_url}, errors.New(pgerrcode.UniqueViolation))
+		}
+		return insertInfo.ID, nil
 	}
 
 }
 
-func (p *PgDb) Get(id int) (string, error) {
+func (p *PgDb) Set(original_url string, user string) (*model.StorageInsertInfo, error) {
+	var insertInfo model.StorageInsertInfo
+	if err := p.sqlInsertURL.QueryRowx(original_url, user).StructScan(&insertInfo); err != nil {
+		return nil, err
+	} else {
+		return &insertInfo, nil
+	}
+}
+
+func (p *PgDb) GetURL(id int) (string, error) {
 	var original_url string
 	row := p.sqlSelectURL.QueryRowx(id)
 	err := row.Scan(&original_url)
@@ -146,40 +170,29 @@ func (p *PgDb) SetBatchURLs(input *[]*model.HandlerURLInfo, username string) (*m
 	}
 	defer tx.Rollback()
 	output := make(map[string]*model.StorageURLInfo)
+	confOriginURL := make([]string, 0)
 	for _, v := range *input {
 		if v.CorrelationID == "" {
 			return nil, errors.New("empty correlation")
 		}
-		if _, ok := output[v.CorrelationID]; ok {
-			return nil, errors.New("dublicate correlation")
-		}
-		id, err := p.Set(v.OriginalURL, username)
+		insertInfo, err := p.Set(v.OriginalURL, username)
 		if err != nil {
 			return nil, err
 		}
+		if insertInfo.Conf {
+			confOriginURL = append(confOriginURL, v.OriginalURL)
+		}
 		output[v.CorrelationID] = &model.StorageURLInfo{
-			ID:          id,
+			ID:          insertInfo.ID,
 			OriginalURL: v.OriginalURL,
 		}
 	}
-	return &output, tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	if len(confOriginURL) != 0 {
+		err = myerrors.NewInsertConflictError(confOriginURL, errors.New(pgerrcode.UniqueViolation))
+		return &output, err
+	}
+	return &output, nil
 }
-
-// func main() {
-// 	db, err := InitDb()
-// 	defer db.Close()
-// 	if err != nil {
-// 		fmt.Println(err)
-// 		return
-// 	}
-// 	if _, err = db.Set("123", "321"); err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	if res, err := db.Get(1); err != nil {
-// 		fmt.Println(err)
-
-// 	} else {
-// 		fmt.Println(res)
-// 	}
-
-// }

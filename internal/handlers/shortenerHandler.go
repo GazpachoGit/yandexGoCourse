@@ -2,17 +2,21 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 
+	myerrors "github.com/GazpachoGit/yandexGoCourse/internal/errors"
 	"github.com/GazpachoGit/yandexGoCourse/internal/middlewares"
 	"github.com/GazpachoGit/yandexGoCourse/internal/model"
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
 	"github.com/go-chi/chi"
 )
+
+var insertConflictError *myerrors.InsertConflictError
 
 type ShortenerHandler struct {
 	*chi.Mux
@@ -68,7 +72,6 @@ func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		} else {
-			log.Println("records length: ", len(res))
 			if res == nil {
 				http.Error(w, "no urls for this user", http.StatusNoContent)
 				return
@@ -103,10 +106,22 @@ func (h *ShortenerHandler) SetBatchURLs() http.HandlerFunc {
 		}
 		requestBody := make([]*model.HandlerURLInfo, 0)
 		json.Unmarshal(b, &requestBody)
+
+		for _, v := range requestBody {
+			if !h.validateURL(v.OriginalURL) {
+				http.Error(w, "invalid input url", http.StatusBadRequest)
+				return
+			}
+		}
+
 		dbUrls, err := h.db.SetBatchURLs(&requestBody, username)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			if errors.As(err, &insertConflictError) {
+				w.WriteHeader(http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 		URLList := make([]model.HandlerURLInfo, 0)
 		for k, v := range *dbUrls {
@@ -142,7 +157,7 @@ func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		id, err := h.db.Set(requestBody.URL, username)
+		id, err := h.db.SetURL(requestBody.URL, username)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -169,18 +184,22 @@ func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 			return
 		}
 		s := string(b)
-		if s == "" {
-			http.Error(w, "url is empty", http.StatusBadRequest)
+		if !h.validateURL(s) {
+			http.Error(w, "invalid input url", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
-		w.WriteHeader(http.StatusCreated)
-		id, err := h.db.Set(s, username)
+		id, err := h.db.SetURL(s, username)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			if errors.As(err, &insertConflictError) {
+				w.WriteHeader(http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			w.WriteHeader(http.StatusCreated)
 		}
-
 		url := h.formURL(id)
 		w.Write([]byte(url))
 	}
@@ -198,7 +217,7 @@ func (h *ShortenerHandler) GetShortURL() http.HandlerFunc {
 			http.Error(w, "incorrect id", http.StatusBadRequest)
 			return
 		}
-		if res, err := h.db.Get(i); err != nil {
+		if res, err := h.db.GetURL(i); err != nil {
 			if err.Error() == storage.ErrNotFound {
 				http.Error(w, err.Error(), http.StatusNotFound)
 				return
@@ -228,4 +247,12 @@ func (h *ShortenerHandler) formURL(id int) string {
 		Path:   "/" + strconv.Itoa(id),
 	}
 	return output.String()
+}
+
+func (h *ShortenerHandler) validateURL(inputURL string) bool {
+	_, err := url.ParseRequestURI(inputURL)
+	if err != nil {
+		return false
+	}
+	return true
 }

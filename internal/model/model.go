@@ -11,3 +11,8 @@ type StorageURLInfo struct {
 	OriginalURL string `db:"original_url"`
 	UserID      string `db:"user_id"`
 }
+
+type StorageInsertInfo struct {
+	ID   int  `db:"id"`
+	Conf bool `db:"conf"`
+}

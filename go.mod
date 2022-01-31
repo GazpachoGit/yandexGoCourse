@@ -10,6 +10,7 @@ require (
 	github.com/davecgh/go-spew v1.1.0 // indirect
 	github.com/go-chi/chi v1.5.4 // indirect
 	github.com/go-chi/chi/v5 v5.0.7 // indirect
+	github.com/jackc/pgerrcode v0.0.0-20201024163028-a0d42d470451
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/lib/pq v1.10.4
 	github.com/pmezard/go-difflib v1.0.0 // indirect
