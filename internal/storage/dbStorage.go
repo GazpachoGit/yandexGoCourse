@@ -149,7 +149,7 @@ func (p *PgDb) GetURL(id int) (string, error) {
 	err := row.Scan(&original_url)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", errors.New(ErrNotFound)
+			return "", myerrors.NewNotFoundError()
 		}
 		return "", err
 	}
@@ -160,6 +160,9 @@ func (p *PgDb) GetUserURLs(user string) ([]model.StorageURLInfo, error) {
 	var URLs []model.StorageURLInfo
 	if err := p.sqlSelectUserURLs.Select(&URLs, user); err != nil {
 		return nil, err
+	}
+	if URLs == nil {
+		return nil, myerrors.NewNotFoundError()
 	}
 	return URLs, nil
 }

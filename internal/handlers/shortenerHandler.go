@@ -17,6 +17,7 @@ import (
 )
 
 var insertConflictError *myerrors.InsertConflictError
+var notFoundError *myerrors.NotFoundError
 
 type ShortenerHandler struct {
 	*chi.Mux
@@ -69,13 +70,14 @@ func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
 		username := r.Context().Value("user").(string)
 		log.Println("username: ", username)
 		if res, err := h.db.GetUserURLs(username); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		} else {
-			if res == nil {
-				http.Error(w, "no urls for this user", http.StatusNoContent)
+			if errors.As(err, &notFoundError) {
+				http.Error(w, err.Error(), http.StatusNoContent)
+				return
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+		} else {
 			URLList := make([]model.HandlerURLInfo, 0)
 			for _, url := range res {
 				URLList = append(URLList, model.HandlerURLInfo{
@@ -221,13 +223,12 @@ func (h *ShortenerHandler) GetShortURL() http.HandlerFunc {
 			return
 		}
 		if res, err := h.db.GetURL(i); err != nil {
-			if err.Error() == storage.ErrNotFound {
+			if errors.As(err, &notFoundError) {
 				http.Error(w, err.Error(), http.StatusNotFound)
 				return
 			}
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-
 		} else {
 			w.Header().Set("Location", res)
 			w.WriteHeader(http.StatusTemporaryRedirect)
