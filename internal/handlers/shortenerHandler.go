@@ -78,6 +78,7 @@ func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
 				return
 			}
 		} else {
+			log.Println(len(res))
 			URLList := make([]model.HandlerURLInfo, 0)
 			for _, url := range res {
 				URLList = append(URLList, model.HandlerURLInfo{

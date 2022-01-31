@@ -5,7 +5,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -52,7 +51,6 @@ func CockieHandler(next http.Handler) http.Handler {
 }
 func setCookie() (*userCookie, error) {
 	user, err := RandBytes()
-	fmt.Println(len(user))
 	if err != nil {
 		return nil, err
 	}
