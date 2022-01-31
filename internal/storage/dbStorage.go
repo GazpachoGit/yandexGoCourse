@@ -44,9 +44,9 @@ func InitDb(psqlInfo string, tableNames *model.StorageTables) (*PgDb, error) {
 	if err = p.createTables(); err != nil {
 		return p, err
 	}
-	if err = p.cleanTestTables(); err != nil {
-		return p, err
-	}
+	// if err = p.cleanTestTables(); err != nil {
+	// 	return p, err
+	// }
 
 	//create statements
 	if err = p.createSqlStmts(); err != nil {

@@ -61,6 +61,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 func TestRouter(t *testing.T) {
 	cfg, _ := serverConfig.GetConfig()
 	db, _ := storage.InitDb(cfg.DBConnectionString, &model.StorageTables{URLTable: "public.urls_torn_test"})
+	defer db.Close()
 
 	r, _ := NewShortenerHandler(db, cfg.BaseURL)
 	ts := httptest.NewServer(r)
