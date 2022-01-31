@@ -156,13 +156,16 @@ func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
+
 		id, err := h.db.SetURL(requestBody.URL, username)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			if errors.As(err, &insertConflictError) {
+				w.WriteHeader(http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
-
 		url := h.formURL(id)
 		responseBody := &ShortenerResponseBoby{Result: url}
 		requestBodyJSON, err := json.Marshal(responseBody)
@@ -170,7 +173,7 @@ func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
+		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(requestBodyJSON))
 	}
 }
