@@ -15,5 +15,6 @@ require (
 	github.com/lib/pq v1.10.4
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/zhashkevych/go-sqlxmock v1.5.1
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )

@@ -3,7 +3,9 @@ package storage
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
+	"strings"
 
 	myerrors "github.com/GazpachoGit/yandexGoCourse/internal/errors"
 	"github.com/GazpachoGit/yandexGoCourse/internal/model"
@@ -17,14 +19,15 @@ const (
 )
 
 type PgDb struct {
+	tableNames        *model.StorageTables
 	dbConn            *sqlx.DB
 	sqlSelectURL      *sqlx.Stmt
 	sqlInsertURL      *sqlx.Stmt
 	sqlSelectUserURLs *sqlx.Stmt
 }
 
-func InitDb(psqlInfo string) (*PgDb, error) {
-	p := &PgDb{nil, nil, nil, nil}
+func InitDb(psqlInfo string, tableNames *model.StorageTables) (*PgDb, error) {
+	p := &PgDb{nil, nil, nil, nil, nil}
 
 	db, err := sqlx.Connect("postgres", psqlInfo)
 	if err != nil {
@@ -35,6 +38,7 @@ func InitDb(psqlInfo string) (*PgDb, error) {
 	if err = p.dbConn.Ping(); err != nil {
 		return p, err
 	}
+	p.tableNames = tableNames
 
 	//create table
 	if err = p.createTables(); err != nil {
@@ -76,22 +80,28 @@ func (p *PgDb) Close() {
 }
 
 func (p *PgDb) createTables() error {
-	create_sql := ` CREATE TABLE IF NOT EXISTS public.urls_torn (
+	create_sql := fmt.Sprintf(` CREATE TABLE IF NOT EXISTS %s (
 		id SERIAL NOT NULL PRIMARY KEY,
        	original_url TEXT NOT NULL UNIQUE,
 	   	user_id TEXT NOT NULL);
-    `
-	// if _, err := p.dbConn.Exec("DROP TABLE IF EXISTS public.urls_torn"); err != nil {
-	// 	return err
-	// }
+    `, p.tableNames.URLTable)
 	if _, err := p.dbConn.Exec(create_sql); err != nil {
 		return err
 	}
 	return nil
 }
 
+func (p *PgDb) CleanTestTables() error {
+	if strings.Contains(p.tableNames.URLTable, "test") {
+		if _, err := p.dbConn.Exec(fmt.Sprintf("TRUNCATE %s RESTART IDENTITY", p.tableNames.URLTable)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (p *PgDb) createSqlStmts() error {
-	insertSQL := `with stmt AS (INSERT INTO public.urls_torn(original_url, user_id)
+	insertSQL := fmt.Sprintf(`with stmt AS (INSERT INTO %s(original_url, user_id)
 	VALUES ($1, $2) 
 	ON CONFLICT(original_url) do nothing
 	RETURNING id, false as conf)
@@ -99,8 +109,8 @@ func (p *PgDb) createSqlStmts() error {
 	select id, conf from stmt 
 	where id is not null
 	UNION ALL
-	select id, true from public.urls_torn
-	where original_url = $1 and not exists (select 1 from stmt)`
+	select id, true from %s
+	where original_url = $1 and not exists (select 1 from stmt)`, p.tableNames.URLTable, p.tableNames.URLTable)
 
 	if stmt, err := p.dbConn.Preparex(insertSQL); err != nil {
 		return err
@@ -108,13 +118,14 @@ func (p *PgDb) createSqlStmts() error {
 		p.sqlInsertURL = stmt
 	}
 
-	if stmt, err := p.dbConn.Preparex("SELECT original_url FROM public.urls_torn WHERE id = $1 LIMIT 1"); err != nil {
+	selectOneSQL := fmt.Sprintf("SELECT original_url FROM %s WHERE id = $1 LIMIT 1", p.tableNames.URLTable)
+	if stmt, err := p.dbConn.Preparex(selectOneSQL); err != nil {
 		return err
 	} else {
 		p.sqlSelectURL = stmt
 	}
-
-	if stmt, err := p.dbConn.Preparex("SELECT id, original_url,user_id FROM public.urls_torn WHERE user_id = $1"); err != nil {
+	selectUserURLsSQL := fmt.Sprintf("SELECT id, original_url,user_id FROM %s WHERE user_id = $1", p.tableNames.URLTable)
+	if stmt, err := p.dbConn.Preparex(selectUserURLsSQL); err != nil {
 		return err
 	} else {
 		p.sqlSelectUserURLs = stmt

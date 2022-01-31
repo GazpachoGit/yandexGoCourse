@@ -16,3 +16,7 @@ type StorageInsertInfo struct {
 	ID   int  `db:"id"`
 	Conf bool `db:"conf"`
 }
+
+type StorageTables struct {
+	URLTable string
+}

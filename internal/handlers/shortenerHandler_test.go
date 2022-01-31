@@ -6,10 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 
 	serverConfig "github.com/GazpachoGit/yandexGoCourse/internal/config"
+	myerrors "github.com/GazpachoGit/yandexGoCourse/internal/errors"
+	"github.com/GazpachoGit/yandexGoCourse/internal/model"
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,9 +60,10 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 
 func TestRouter(t *testing.T) {
 	cfg, _ := serverConfig.GetConfig()
-	urlMap, _ := storage.NewURLMap(cfg.FilePath)
+	db, _ := storage.InitDb(cfg.DBConnectionString, &model.StorageTables{URLTable: "urls_torn_test"})
+	db.CleanTestTables()
 
-	r := NewShortenerHandler(urlMap, cfg.BaseURL)
+	r, _ := NewShortenerHandler(db, cfg.BaseURL)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
@@ -79,7 +81,7 @@ func TestRouter(t *testing.T) {
 			body:   []byte("http://ya.ru"),
 			want: &want{
 				code:     http.StatusCreated,
-				response: cfg.BaseURL + strconv.Itoa(urlMap.GetCount()+1),
+				response: cfg.BaseURL + "1",
 			},
 		},
 		{
@@ -89,7 +91,7 @@ func TestRouter(t *testing.T) {
 			body:   []byte("https://google.com"),
 			want: &want{
 				code:     http.StatusCreated,
-				response: cfg.BaseURL + strconv.Itoa(urlMap.GetCount()+2),
+				response: cfg.BaseURL + "2",
 			},
 		},
 		{
@@ -131,7 +133,7 @@ func TestRouter(t *testing.T) {
 			want: &want{
 				code:     http.StatusNotFound,
 				header:   "",
-				response: storage.ErrNotFound + "\n",
+				response: myerrors.NewNotFoundError().Error() + "\n",
 			},
 		},
 		{
@@ -141,7 +143,7 @@ func TestRouter(t *testing.T) {
 			body:   []byte("{\"url\":\"http://yandex.ru\"}"),
 			want: &want{
 				code:     http.StatusCreated,
-				response: "{\"result\":\"" + cfg.BaseURL + strconv.Itoa(urlMap.GetCount()+3) + "\"}",
+				response: "{\"result\":\"" + cfg.BaseURL + "3" + "\"}",
 			},
 		},
 		{
