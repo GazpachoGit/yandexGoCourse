@@ -44,6 +44,9 @@ func InitDb(psqlInfo string, tableNames *model.StorageTables) (*PgDb, error) {
 	if err = p.createTables(); err != nil {
 		return p, err
 	}
+	if err = p.cleanTestTables(); err != nil {
+		return p, err
+	}
 
 	//create statements
 	if err = p.createSqlStmts(); err != nil {
@@ -91,7 +94,7 @@ func (p *PgDb) createTables() error {
 	return nil
 }
 
-func (p *PgDb) CleanTestTables() error {
+func (p *PgDb) cleanTestTables() error {
 	if strings.Contains(p.tableNames.URLTable, "test") {
 		if _, err := p.dbConn.Exec(fmt.Sprintf("TRUNCATE %s RESTART IDENTITY", p.tableNames.URLTable)); err != nil {
 			return err
