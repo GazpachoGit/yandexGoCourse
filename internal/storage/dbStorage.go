@@ -114,7 +114,7 @@ func (p *PgDb) createSqlStmts() error {
 		p.sqlSelectURL = stmt
 	}
 
-	if stmt, err := p.dbConn.Preparex("SELECT id, original_url FROM public.urls_torn WHERE user_id = $1"); err != nil {
+	if stmt, err := p.dbConn.Preparex("SELECT id, original_url,user_id FROM public.urls_torn WHERE user_id = $1"); err != nil {
 		return err
 	} else {
 		p.sqlSelectUserURLs = stmt
@@ -164,6 +164,7 @@ func (p *PgDb) GetUserURLs(user string) ([]model.StorageURLInfo, error) {
 	if URLs == nil {
 		return nil, myerrors.NewNotFoundError()
 	}
+	log.Println("userId for the first: ", URLs[0].UserID)
 	return URLs, nil
 }
 func (p *PgDb) SetBatchURLs(input *[]*model.HandlerURLInfo, username string) (*map[string]*model.StorageURLInfo, error) {

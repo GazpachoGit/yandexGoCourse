@@ -6,9 +6,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"log"
-	"math/rand"
 	"net/http"
-	"strconv"
+
+	uuid "github.com/nu7hatch/gouuid"
 )
 
 var secretkey = []byte("$ecret key")
@@ -50,7 +50,8 @@ func CockieHandler(next http.Handler) http.Handler {
 	})
 }
 func setCookie() (*userCookie, error) {
-	user, err := RandBytes()
+	userGuid, err := uuid.NewV4()
+	user := userGuid.String()
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +63,7 @@ func setCookie() (*userCookie, error) {
 	userEncode := hex.EncodeToString([]byte(user))
 
 	cookie := &http.Cookie{
+		Path:   "/",
 		Name:   "token",
 		Value:  userEncode + tockenEncode,
 		MaxAge: 300,
@@ -74,19 +76,14 @@ func getUser(cookie *http.Cookie) (*userCookie, error) {
 	if value != "" {
 		decodedValue, err := hex.DecodeString(value)
 		if err == nil {
-			user := decodedValue[:19]
+			user := decodedValue[:36]
 			h := hmac.New(sha256.New, secretkey)
 			h.Write(user)
 			sign := h.Sum(nil)
-			if hmac.Equal(sign, decodedValue[19:]) {
+			if hmac.Equal(sign, decodedValue[36:]) {
 				return &userCookie{token: cookie, User: string(user), New: false}, nil
 			}
 		}
 	}
 	return setCookie()
-}
-
-func RandBytes() (string, error) {
-	b := rand.Int()
-	return strconv.Itoa(b), nil
 }
