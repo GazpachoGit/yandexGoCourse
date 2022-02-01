@@ -26,7 +26,7 @@ func (ce *InsertConflictError) Unwrap() error {
 type NotFoundError struct{}
 
 func (nf *NotFoundError) Error() string {
-	return fmt.Sprintf("can't find url for this input")
+	return "can't find url for this input"
 }
 
 func NewNotFoundError() error {

@@ -67,12 +67,11 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 	}
 }
 
-func TestRouter(t *testing.T) {
-
-	cfg, _ := serverConfig.GetConfig()
+func prepareMock() (*sqlx.DB, error) {
 	mockdb, mock, err := sqlxmock.New()
-
-	defer mockdb.Close()
+	if err != nil {
+		return nil, err
+	}
 	db := sqlx.NewDb(mockdb, "sqlmock")
 	username := "94e4632b-add8-4d55-5a7e-c58fe20dc44f"
 
@@ -110,12 +109,20 @@ func TestRouter(t *testing.T) {
 	mock.ExpectQuery(insertSQL).WithArgs("http://yandex.ru", username).WillReturnRows(rowsInsert3)
 
 	mock.ExpectClose()
+	return db, nil
+}
 
-	pDb, err := storage.ConfigDb(db)
+func TestRouter(t *testing.T) {
+
+	cfg, _ := serverConfig.GetConfig()
+	db, err := prepareMock()
 	require.NoError(t, err)
-	defer pDb.Close()
 
-	r, _ := NewShortenerHandler(pDb, cfg.BaseURL)
+	pDB, err := storage.ConfigDBForTest(db)
+	require.NoError(t, err)
+	defer pDB.Close()
+
+	r, _ := NewShortenerHandler(pDB, cfg.BaseURL)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 

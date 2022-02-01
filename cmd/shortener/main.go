@@ -26,7 +26,7 @@ func main() {
 	log.Println("result ServerAddres: " + cfg.ServerAddres)
 	log.Println("result BaseURL: " + cfg.BaseURL)
 
-	db, err := storage.InitDb(cfg.DBConnectionString)
+	db, err := storage.InitDB(cfg.DBConnectionString)
 	defer db.Close()
 	if err != nil {
 		log.Fatalln(err)

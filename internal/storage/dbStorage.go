@@ -16,15 +16,15 @@ const (
 	ErrNotFound = "can't find id"
 )
 
-type PgDb struct {
+type PgDB struct {
 	dbConn            *sqlx.DB
 	sqlSelectURL      *sqlx.Stmt
 	sqlInsertURL      *sqlx.Stmt
 	sqlSelectUserURLs *sqlx.Stmt
 }
 
-func InitDb(psqlInfo string) (*PgDb, error) {
-	p := &PgDb{nil, nil, nil, nil}
+func InitDB(psqlInfo string) (*PgDB, error) {
+	p := &PgDB{nil, nil, nil, nil}
 
 	db, err := sqlx.Connect("postgres", psqlInfo)
 	if err != nil {
@@ -42,7 +42,7 @@ func InitDb(psqlInfo string) (*PgDb, error) {
 	}
 
 	//create statements
-	if err = p.createSqlStmts(); err != nil {
+	if err = p.createSQLStmts(); err != nil {
 		return p, err
 	}
 
@@ -50,35 +50,30 @@ func InitDb(psqlInfo string) (*PgDb, error) {
 
 }
 
-func ConfigDb(db *sqlx.DB) (*PgDb, error) {
-	p := &PgDb{nil, nil, nil, nil}
+func ConfigDBForTest(db *sqlx.DB) (*PgDB, error) {
+	p := &PgDB{nil, nil, nil, nil}
 	p.dbConn = db
 
 	if err := p.dbConn.Ping(); err != nil {
 		return p, err
 	}
 
-	// //create table
-	// if err := p.createTables(); err != nil {
-	// 	return p, err
-	// }
-
 	//create statements
-	if err := p.createSqlStmts(); err != nil {
+	if err := p.createSQLStmts(); err != nil {
 		return p, err
 	}
 
 	return p, nil
 }
 
-func (p *PgDb) PingDB() error {
+func (p *PgDB) PingDB() error {
 	if err := p.dbConn.Ping(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *PgDb) Close() {
+func (p *PgDB) Close() {
 	if p.dbConn != nil {
 		if err := p.dbConn.Close(); err != nil {
 			log.Fatalln(err)
@@ -96,19 +91,19 @@ func (p *PgDb) Close() {
 	}
 }
 
-func (p *PgDb) createTables() error {
-	create_sql := ` CREATE TABLE IF NOT EXISTS public.urls_torn (
+func (p *PgDB) createTables() error {
+	createSQL := ` CREATE TABLE IF NOT EXISTS public.urls_torn (
 		id SERIAL NOT NULL PRIMARY KEY,
        	original_url TEXT NOT NULL UNIQUE,
 	   	user_id TEXT NOT NULL);
     `
-	if _, err := p.dbConn.Exec(create_sql); err != nil {
+	if _, err := p.dbConn.Exec(createSQL); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *PgDb) createSqlStmts() error {
+func (p *PgDB) createSQLStmts() error {
 	insertSQL := `with stmt AS (INSERT INTO public.urls_torn(original_url, user_id)
 	VALUES ($1, $2) 
 	ON CONFLICT(original_url) do nothing
@@ -141,41 +136,41 @@ func (p *PgDb) createSqlStmts() error {
 	return nil
 }
 
-func (p *PgDb) SetURL(original_url string, user string) (int, error) {
-	if insertInfo, err := p.Set(original_url, user); err != nil {
+func (p *PgDB) SetURL(originalURL string, user string) (int, error) {
+	if insertInfo, err := p.Set(originalURL, user); err != nil {
 		return 0, err
 	} else {
 		if insertInfo.Conf {
-			return insertInfo.ID, myerrors.NewInsertConflictError([]string{original_url}, errors.New(pgerrcode.UniqueViolation))
+			return insertInfo.ID, myerrors.NewInsertConflictError([]string{originalURL}, errors.New(pgerrcode.UniqueViolation))
 		}
 		return insertInfo.ID, nil
 	}
 
 }
 
-func (p *PgDb) Set(original_url string, user string) (*model.StorageInsertInfo, error) {
+func (p *PgDB) Set(originalURL string, user string) (*model.StorageInsertInfo, error) {
 	var insertInfo model.StorageInsertInfo
-	if err := p.sqlInsertURL.Get(&insertInfo, original_url, user); err != nil {
+	if err := p.sqlInsertURL.Get(&insertInfo, originalURL, user); err != nil {
 		return nil, err
 	} else {
 		return &insertInfo, nil
 	}
 }
 
-func (p *PgDb) GetURL(id int) (string, error) {
-	var original_url string
+func (p *PgDB) GetURL(id int) (string, error) {
+	var originalURL string
 	row := p.sqlSelectURL.QueryRowx(id)
-	err := row.Scan(&original_url)
+	err := row.Scan(&originalURL)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", myerrors.NewNotFoundError()
 		}
 		return "", err
 	}
-	return original_url, nil
+	return originalURL, nil
 }
 
-func (p *PgDb) GetUserURLs(user string) ([]model.StorageURLInfo, error) {
+func (p *PgDB) GetUserURLs(user string) ([]model.StorageURLInfo, error) {
 	var URLs []model.StorageURLInfo
 	if err := p.sqlSelectUserURLs.Select(&URLs, user); err != nil {
 		return nil, err
@@ -185,7 +180,7 @@ func (p *PgDb) GetUserURLs(user string) ([]model.StorageURLInfo, error) {
 	}
 	return URLs, nil
 }
-func (p *PgDb) SetBatchURLs(input *[]*model.HandlerURLInfo, username string) (*map[string]*model.StorageURLInfo, error) {
+func (p *PgDB) SetBatchURLs(input *[]*model.HandlerURLInfo, username string) (*map[string]*model.StorageURLInfo, error) {
 	tx, err := p.dbConn.Begin()
 	if err != nil {
 		return nil, err

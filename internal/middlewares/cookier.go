@@ -50,8 +50,8 @@ func CockieHandler(next http.Handler) http.Handler {
 	})
 }
 func setCookie() (*userCookie, error) {
-	userGuid, err := uuid.NewV4()
-	user := userGuid.String()
+	userGUID, err := uuid.NewV4()
+	user := userGUID.String()
 	if err != nil {
 		return nil, err
 	}

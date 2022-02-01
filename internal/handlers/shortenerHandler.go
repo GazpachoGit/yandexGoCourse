@@ -256,8 +256,5 @@ func (h *ShortenerHandler) formURL(id int) string {
 
 func (h *ShortenerHandler) validateURL(inputURL string) bool {
 	_, err := url.ParseRequestURI(inputURL)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
