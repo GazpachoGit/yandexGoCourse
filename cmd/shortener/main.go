@@ -11,7 +11,6 @@ import (
 
 	serverconfig "github.com/GazpachoGit/yandexGoCourse/internal/config"
 	"github.com/GazpachoGit/yandexGoCourse/internal/handlers"
-	"github.com/GazpachoGit/yandexGoCourse/internal/model"
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
 )
 
@@ -27,7 +26,7 @@ func main() {
 	log.Println("result ServerAddres: " + cfg.ServerAddres)
 	log.Println("result BaseURL: " + cfg.BaseURL)
 
-	db, err := storage.InitDb(cfg.DBConnectionString, &model.StorageTables{URLTable: "public.urls_torn"})
+	db, err := storage.InitDb(cfg.DBConnectionString)
 	defer db.Close()
 	if err != nil {
 		log.Fatalln(err)
