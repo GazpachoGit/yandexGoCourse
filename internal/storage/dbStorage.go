@@ -155,7 +155,7 @@ func (p *PgDb) SetURL(original_url string, user string) (int, error) {
 
 func (p *PgDb) Set(original_url string, user string) (*model.StorageInsertInfo, error) {
 	var insertInfo model.StorageInsertInfo
-	if err := p.sqlInsertURL.QueryRowx(original_url, user).StructScan(&insertInfo); err != nil {
+	if err := p.sqlInsertURL.Get(&insertInfo, original_url, user); err != nil {
 		return nil, err
 	} else {
 		return &insertInfo, nil

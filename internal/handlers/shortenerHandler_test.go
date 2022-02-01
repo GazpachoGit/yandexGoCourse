@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"bytes"
+	"database/sql"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -39,6 +40,12 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []
 		req, err = http.NewRequest(method, ts.URL+path, bytes.NewBuffer(body))
 	}
 	require.NoError(t, err)
+	cookie := &http.Cookie{
+		Name:   "token",
+		MaxAge: 300,
+		Value:  "39346534363332622d616464382d346435352d356137652d633538666532306463343466a27c461b40633a04076e64d7ae9320596b24aaa30ffe5d6aa0be9e8482b48563",
+	}
+	req.AddCookie(cookie)
 
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -67,9 +74,7 @@ func TestRouter(t *testing.T) {
 
 	defer mockdb.Close()
 	db := sqlx.NewDb(mockdb, "sqlmock")
-
-	rowsInsert1 := sqlxmock.NewRows([]string{"id,", "conf"}).AddRow(1, false)
-	rowsInsert2 := sqlxmock.NewRows([]string{"id,", "conf"}).AddRow(2, false)
+	username := "94e4632b-add8-4d55-5a7e-c58fe20dc44f"
 
 	insertSQL := regexp.QuoteMeta(`with stmt AS (INSERT INTO public.urls_torn(original_url, user_id)
 	VALUES ($1, $2) 
@@ -81,20 +86,30 @@ func TestRouter(t *testing.T) {
 	UNION ALL
 	select id, true from public.urls_torn
 	where original_url = $1 and not exists (select 1 from stmt)`)
+	selectOneSQL := regexp.QuoteMeta("SELECT original_url FROM public.urls_torn WHERE id = $1 LIMIT 1")
+	selectUserURLsSQL := regexp.QuoteMeta("SELECT id, original_url FROM public.urls_torn WHERE user_id = $1")
 
-	mock.ExpectPrepare(insertSQL).ExpectQuery().WithArgs("http://ya.ru", "1").WillReturnRows(rowsInsert1)
-	mock.ExpectPrepare(insertSQL).ExpectQuery().WithArgs("https://google.com", "1").WillReturnRows(rowsInsert2)
+	mock.ExpectPrepare(insertSQL)
+	mock.ExpectPrepare(selectOneSQL)
+	mock.ExpectPrepare(selectUserURLsSQL)
+
+	rowsInsert1 := sqlxmock.NewRows([]string{"id", "conf"}).AddRow(1, false)
+	rowsInsert2 := sqlxmock.NewRows([]string{"id", "conf"}).AddRow(2, false)
+
+	mock.ExpectQuery(insertSQL).WithArgs("http://ya.ru", username).WillReturnRows(rowsInsert1)
+	mock.ExpectQuery(insertSQL).WithArgs("https://google.com", username).WillReturnRows(rowsInsert2)
 
 	rowsSelect1 := sqlxmock.NewRows([]string{"original_url"}).AddRow("http://ya.ru")
 	rowsSelect2 := sqlxmock.NewRows([]string{"original_url"}).AddRow("https://google.com")
 
-	selectOneSQL := regexp.QuoteMeta("SELECT original_url FROM public.urls_torn WHERE id = $1 LIMIT 1")
-	mock.ExpectPrepare(selectOneSQL).ExpectQuery().WithArgs(1).WillReturnRows(rowsSelect1)
-	mock.ExpectPrepare(selectOneSQL).ExpectQuery().WithArgs(2).WillReturnRows(rowsSelect2)
+	mock.ExpectQuery(selectOneSQL).WithArgs(1).WillReturnRows(rowsSelect1)
+	mock.ExpectQuery(selectOneSQL).WithArgs(2).WillReturnRows(rowsSelect2)
+	mock.ExpectQuery(selectOneSQL).WithArgs(123).WillReturnError(sql.ErrNoRows)
 
-	rowsUserSelect1 := sqlxmock.NewRows([]string{"id", "original_url"}).AddRow(1, "http://ya.ru").AddRow(2, "https://google.com")
-	selectUserURLsSQL := regexp.QuoteMeta("SELECT id, original_url FROM public.urls_torn WHERE user_id = $1")
-	mock.ExpectPrepare(selectUserURLsSQL).ExpectQuery().WithArgs(1).WillReturnRows(rowsUserSelect1)
+	rowsInsert3 := sqlxmock.NewRows([]string{"id", "conf"}).AddRow(3, false)
+	mock.ExpectQuery(insertSQL).WithArgs("http://yandex.ru", username).WillReturnRows(rowsInsert3)
+
+	mock.ExpectClose()
 
 	pDb, err := storage.ConfigDb(db)
 	require.NoError(t, err)
