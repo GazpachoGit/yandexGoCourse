@@ -2,19 +2,28 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 
+	myerrors "github.com/GazpachoGit/yandexGoCourse/internal/errors"
+	"github.com/GazpachoGit/yandexGoCourse/internal/middlewares"
+	"github.com/GazpachoGit/yandexGoCourse/internal/model"
 	"github.com/GazpachoGit/yandexGoCourse/internal/storage"
 	"github.com/go-chi/chi"
 )
 
+var insertConflictError *myerrors.InsertConflictError
+var notFoundError *myerrors.NotFoundError
+
 type ShortenerHandler struct {
 	*chi.Mux
-	URLMap  storage.GetSet
-	BaseURL string
+	db            storage.IStorage
+	BaseURLstring string
+	BaseURL       *url.URL
 }
 
 type ShortenerRequestBoby struct {
@@ -25,19 +34,131 @@ type ShortenerResponseBoby struct {
 	Result string `json:"result"`
 }
 
-func NewShortenerHandler(urlMapInput storage.GetSet, BaseURL string) *ShortenerHandler {
+func NewShortenerHandler(urlMapInput storage.IStorage, BaseURL string) (*ShortenerHandler, error) {
 	h := &ShortenerHandler{
-		Mux:     chi.NewMux(),
-		URLMap:  urlMapInput,
-		BaseURL: BaseURL,
+		Mux:           chi.NewMux(),
+		db:            urlMapInput,
+		BaseURLstring: BaseURL,
 	}
+	if err := h.initBaseURL(); err != nil {
+		return nil, err
+	}
+	compressor := &middlewares.Compressor{}
+	h.Use(compressor.CompressHandler)
+	h.Use(middlewares.DecompressHandler)
+	h.Use(middlewares.CockieHandler)
 	h.Post("/", h.NewShortURL())
 	h.Get("/{id}", h.GetShortURL())
 	h.Post("/api/shorten", h.NewShortURLByJSON())
-	return h
+	h.Get("/user/urls", h.GetUserURLs())
+	h.Get("/ping", h.CheckDBConnection())
+	h.Post("/api/shorten/batch", h.SetBatchURLs())
+	return h, nil
 }
+
+func (h *ShortenerHandler) initBaseURL() error {
+	u, err := url.ParseRequestURI(h.BaseURLstring)
+	if err != nil {
+		return err
+	}
+	h.BaseURL = u
+	return nil
+}
+
+func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username, ok := middlewares.GetUserFromCxt(r.Context())
+		if !ok {
+			http.Error(w, "token unexpected error", http.StatusInternalServerError)
+			return
+		}
+		log.Println("username: ", username)
+		if res, err := h.db.GetUserURLs(username); err != nil {
+			if errors.As(err, &notFoundError) {
+				http.Error(w, err.Error(), http.StatusNoContent)
+				return
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			log.Println(len(res))
+			URLList := make([]model.HandlerURLInfo, 0)
+			for _, url := range res {
+				URLList = append(URLList, model.HandlerURLInfo{
+					OriginalURL: url.OriginalURL,
+					ShortURL:    h.formURL(url.ID),
+				})
+			}
+			respBody, err := json.Marshal(URLList)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(respBody))
+		}
+
+	}
+}
+
+func (h *ShortenerHandler) SetBatchURLs() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username, ok := middlewares.GetUserFromCxt(r.Context())
+		if !ok {
+			http.Error(w, "token unexpected error", http.StatusInternalServerError)
+			return
+		}
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		requestBody := make([]*model.HandlerURLInfo, 0)
+		json.Unmarshal(b, &requestBody)
+
+		for _, v := range requestBody {
+			if !h.validateURL(v.OriginalURL) {
+				http.Error(w, "invalid input url", http.StatusBadRequest)
+				return
+			}
+		}
+
+		dbUrls, err := h.db.SetBatchURLs(&requestBody, username)
+		if err != nil {
+			if errors.As(err, &insertConflictError) {
+				w.WriteHeader(http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		URLList := make([]model.HandlerURLInfo, 0)
+		for k, v := range *dbUrls {
+			URLList = append(URLList, model.HandlerURLInfo{
+				CorrelationID: k,
+				ShortURL:      h.formURL(v.ID),
+			})
+		}
+		respBody, err := json.Marshal(URLList)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(respBody))
+	}
+}
+
 func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		username, ok := middlewares.GetUserFromCxt(r.Context())
+		if !ok {
+			http.Error(w, "token unexpected error", http.StatusInternalServerError)
+			return
+		}
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -50,54 +171,62 @@ func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		id, err := h.URLMap.Set(requestBody.URL)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 
-		url, err := h.formURL(id)
+		id, err := h.db.SetURL(requestBody.URL, username)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			if errors.As(err, &insertConflictError) {
+				w.WriteHeader(http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
+		url := h.formURL(id)
 		responseBody := &ShortenerResponseBoby{Result: url}
 		requestBodyJSON, err := json.Marshal(responseBody)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
+		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(requestBodyJSON))
 	}
 }
 
 func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		username, ok := middlewares.GetUserFromCxt(r.Context())
+		if !ok {
+			http.Error(w, "token unexpected error", http.StatusInternalServerError)
+			return
+		}
+		if !ok {
+			http.Error(w, "token unexpected error", http.StatusInternalServerError)
+			return
+		}
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		s := string(b)
-		if s == "" {
-			http.Error(w, "url is empty", http.StatusBadRequest)
+		if !h.validateURL(s) {
+			http.Error(w, "invalid input url", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
-		w.WriteHeader(http.StatusCreated)
-		id, err := h.URLMap.Set(s)
+		id, err := h.db.SetURL(s, username)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			if errors.As(err, &insertConflictError) {
+				w.WriteHeader(http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			w.WriteHeader(http.StatusCreated)
 		}
-
-		url, err := h.formURL(id)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		url := h.formURL(id)
 		w.Write([]byte(url))
 	}
 }
@@ -114,29 +243,38 @@ func (h *ShortenerHandler) GetShortURL() http.HandlerFunc {
 			http.Error(w, "incorrect id", http.StatusBadRequest)
 			return
 		}
-		if res, err := h.URLMap.Get(i); err != nil {
-			if err.Error() == storage.ErrNotFound {
+		if res, err := h.db.GetURL(i); err != nil {
+			if errors.As(err, &notFoundError) {
 				http.Error(w, err.Error(), http.StatusNotFound)
 				return
 			}
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-
 		} else {
 			w.Header().Set("Location", res)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 		}
 	}
 }
-func (h *ShortenerHandler) formURL(id int) (string, error) {
-	u, err := url.ParseRequestURI(h.BaseURL)
-	if err != nil {
-		return "", err
+func (h *ShortenerHandler) CheckDBConnection() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := h.db.PingDB(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	}
+}
+func (h *ShortenerHandler) formURL(id int) string {
 	output := url.URL{
-		Scheme: u.Scheme,
-		Host:   u.Host,
+		Scheme: h.BaseURL.Scheme,
+		Host:   h.BaseURL.Host,
 		Path:   "/" + strconv.Itoa(id),
 	}
-	return output.String(), nil
+	return output.String()
+}
+
+func (h *ShortenerHandler) validateURL(inputURL string) bool {
+	_, err := url.ParseRequestURI(inputURL)
+	return err == nil
 }
