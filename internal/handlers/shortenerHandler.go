@@ -67,7 +67,11 @@ func (h *ShortenerHandler) initBaseURL() error {
 
 func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username := r.Context().Value("user").(string)
+		username, ok := middlewares.GetUserFromCxt(r.Context())
+		if !ok {
+			http.Error(w, "token unexpected error", http.StatusInternalServerError)
+			return
+		}
 		log.Println("username: ", username)
 		if res, err := h.db.GetUserURLs(username); err != nil {
 			if errors.As(err, &notFoundError) {
@@ -101,7 +105,11 @@ func (h *ShortenerHandler) GetUserURLs() http.HandlerFunc {
 
 func (h *ShortenerHandler) SetBatchURLs() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username := r.Context().Value("user").(string)
+		username, ok := middlewares.GetUserFromCxt(r.Context())
+		if !ok {
+			http.Error(w, "token unexpected error", http.StatusInternalServerError)
+			return
+		}
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -146,7 +154,11 @@ func (h *ShortenerHandler) SetBatchURLs() http.HandlerFunc {
 
 func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username := r.Context().Value("user").(string)
+		username, ok := middlewares.GetUserFromCxt(r.Context())
+		if !ok {
+			http.Error(w, "token unexpected error", http.StatusInternalServerError)
+			return
+		}
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -183,7 +195,15 @@ func (h *ShortenerHandler) NewShortURLByJSON() http.HandlerFunc {
 
 func (h *ShortenerHandler) NewShortURL() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username := r.Context().Value("user").(string)
+		username, ok := middlewares.GetUserFromCxt(r.Context())
+		if !ok {
+			http.Error(w, "token unexpected error", http.StatusInternalServerError)
+			return
+		}
+		if !ok {
+			http.Error(w, "token unexpected error", http.StatusInternalServerError)
+			return
+		}
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)

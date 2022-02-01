@@ -11,6 +11,14 @@ import (
 	uuid "github.com/nu7hatch/gouuid"
 )
 
+type contextKey string
+
+func (c contextKey) String() string {
+	return "mypackage context key " + string(c)
+}
+
+var contextKeyUser = contextKey("user")
+
 var secretkey = []byte("$ecret key")
 
 type userCookie struct {
@@ -45,7 +53,7 @@ func CockieHandler(next http.Handler) http.Handler {
 			http.SetCookie(w, currentUC.token)
 		}
 
-		ctx := context.WithValue(r.Context(), "user", currentUC.User)
+		ctx := context.WithValue(r.Context(), contextKeyUser, currentUC.User)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -86,4 +94,9 @@ func getUser(cookie *http.Cookie) (*userCookie, error) {
 		}
 	}
 	return setCookie()
+}
+
+func GetUserFromCxt(ctx context.Context) (string, bool) {
+	user, ok := ctx.Value(contextKeyUser).(string)
+	return user, ok
 }
