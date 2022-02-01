@@ -3,7 +3,6 @@ package storage
 import (
 	"database/sql"
 	"errors"
-	"log"
 
 	myerrors "github.com/GazpachoGit/yandexGoCourse/internal/errors"
 	"github.com/GazpachoGit/yandexGoCourse/internal/model"
@@ -73,22 +72,28 @@ func (p *PgDB) PingDB() error {
 	return nil
 }
 
-func (p *PgDB) Close() {
+func (p *PgDB) Close() error {
 	if p.dbConn != nil {
 		if err := p.dbConn.Close(); err != nil {
-			log.Fatalln(err)
+			return err
 		}
 	}
 	if p.sqlInsertURL != nil {
 		if err := p.sqlInsertURL.Close(); err != nil {
-			log.Fatalln(err)
+			return err
 		}
 	}
 	if p.sqlSelectURL != nil {
 		if err := p.sqlSelectURL.Close(); err != nil {
-			log.Fatalln(err)
+			return err
 		}
 	}
+	if p.sqlSelectUserURLs != nil {
+		if err := p.sqlSelectUserURLs.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *PgDB) createTables() error {

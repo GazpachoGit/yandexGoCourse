@@ -27,11 +27,17 @@ func main() {
 	log.Println("result BaseURL: " + cfg.BaseURL)
 
 	db, err := storage.InitDB(cfg.DBConnectionString)
-	defer db.Close()
 	if err != nil {
 		log.Fatalln(err)
 		return
 	}
+	defer func() {
+		err := db.Close()
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}()
+
 	r, err := handlers.NewShortenerHandler(db, cfg.BaseURL)
 	if err != nil {
 		log.Fatalln(err)
